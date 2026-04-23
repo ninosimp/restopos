@@ -94,15 +94,21 @@ export default function RestaurantPOS() {
 
   // --- ฟังก์ชันอัปเดตสถานะ (PATCH) ป้องกัน undefined โดยส่ง null แทน ---
   const handleUpdateOrderStatus = async (id, currentStatus) => {
-    if (!id) return;
+    // เพิ่มการเช็ค: ถ้าไม่มี id หลุดเข้ามา ให้หยุดทำงานทันที ไม่ต้องส่งไปหา API
+    if (!id || id === 'undefined') {
+      console.error("ID is missing!");
+      return;
+    }
+
     const nextStatus = (currentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';
     
     try {
+      // ใช้ id ที่ส่งเข้ามาประกอบเป็น URL
       const res = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          status: nextStatus // ส่งชื่อให้ตรงกับที่หลังบ้านรอรับ
+          status: nextStatus 
         }),
       });
 
