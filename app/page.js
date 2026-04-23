@@ -114,15 +114,23 @@ export default function RestaurantPOS() {
   };
 
   // --- ฟังก์ชันอัปเดตสถานะออเดอร์ (กำลังทำ -> เสร็จสิ้น) ---
-  const handleUpdateOrderStatus = async (orderId, currentStatus) => {
-    const newStatus = currentStatus === 'กำลังทำ' ? 'เสร็จสิ้น' : 'กำลังทำ';
-    await fetch(`/api/orders/${orderId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
+  const updateOrderStatus = async (orderId, newStatus) => {
+  try {
+    const res = await fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     });
-    fetchAllData();
-  };
+
+    if (res.ok) {
+      fetchAllData(); // ดึงข้อมูลใหม่มาโชว์ทันที
+    } else {
+      alert("ไม่สามารถเปลี่ยนสถานะได้");
+    }
+  } catch (error) {
+    console.error("Update failed:", error);
+  }
+};
 
   // --- ตัวกรองค้นหาเมนู ---
   const categories = ["All", ...new Set((Array.isArray(menus) ? menus : []).map((m) => m.category))];
