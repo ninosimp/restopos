@@ -115,18 +115,20 @@ export default function RestaurantPOS() {
   };
 
   // --- ฟังก์ชันอัปเดตสถานะ (PATCH) ---
-  const handleUpdateOrderStatus = async (id, currentStatus) => {
+ const handleUpdateOrderStatus = async (id, currentStatus) => {
     if (!id) return;
+    // สลับสถานะระหว่าง 'กำลังทำ' และ 'เสร็จสิ้น'
     const newStatus = (currentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';
+    
     try {
       const res = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus }), // ส่งค่า status ใหม่ไปใน Body
       });
 
       if (res.ok) {
-        fetchAllData(); 
+        fetchAllData(); // รีเฟรชข้อมูลหน้าจอ
       } else {
         alert("ไม่สามารถเปลี่ยนสถานะได้");
       }
@@ -277,18 +279,23 @@ export default function RestaurantPOS() {
                       </div>
                     </div>
                     {expandedOrderId === order.id && (
-                      <div className="p-8 border-t-2 border-dashed border-slate-100 bg-white animate-in slide-in-from-top-4 duration-300">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Itemized Receipt</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-                          {Array.isArray(order.items) && order.items.map((item, idx) => (
-                            <div key={idx} className="flex justify-between text-sm items-center border-b border-slate-50 pb-2">
-                              <span className="text-slate-600 font-bold">{item.name} <span className="text-slate-300 ml-2">x{item.qty}</span></span>
-                              <span className="font-black text-slate-900">฿{(Number(item.price) * item.qty).toLocaleString()}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+  <div className="p-8 border-t-2 border-dashed border-slate-100 bg-white animate-in slide-in-from-top-4 duration-300">
+    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Itemized Receipt</h4>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+      {Array.isArray(order.items) && order.items.map((item, idx) => (
+        <div key={idx} className="flex justify-between text-sm items-center border-b border-slate-50 pb-2">
+          <span className="text-slate-600 font-bold">
+            {/* แก้จาก item.menu_name เป็น item.name */}
+            {item.name} <span className="text-slate-300 ml-2">x{item.qty}</span>
+          </span>
+          <span className="font-black text-slate-900">
+            ฿{(Number(item.price) * item.qty).toLocaleString()}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
                   </div>
                 ))}
               </div>
