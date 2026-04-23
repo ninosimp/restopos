@@ -3,22 +3,19 @@ import { mysqlPool } from "@/utils/db";
 
 export async function PATCH(req, { params }) {
   try {
-    const { id } = params; // ดึง ID ออเดอร์จาก URL
+    const { id } = params; 
     const body = await req.json();
-    const { status } = body; // รับค่าสถานะใหม่ เช่น 'เสร็จสิ้น'
+    const { status } = body;
 
-    if (!status) {
-      return NextResponse.json({ error: "กรุณาระบุสถานะ" }, { status: 400 });
-    }
+    console.log("Updating Order ID:", id, "New Status:", status); // เช็คใน Vercel Logs ได้
 
-    // อัปเดตข้อมูลใน TiDB
     const [result] = await mysqlPool.execute(
       "UPDATE orders SET status = ? WHERE id = ?",
       [status, id]
     );
 
     if (result.affectedRows === 0) {
-      return NextResponse.json({ error: "ไม่พบออเดอร์ที่ระบุ" }, { status: 404 });
+      return NextResponse.json({ error: "ไม่พบออเดอร์ หรือสถานะซ้ำเดิม" }, { status: 404 });
     }
 
     return NextResponse.json({ message: "อัปเดตสถานะสำเร็จ" });
