@@ -116,21 +116,32 @@ export default function RestaurantPOS() {
 
   // --- ฟังก์ชันอัปเดตสถานะ (PATCH) ---
  const handleUpdateOrderStatus = async (id, currentStatus) => {
-    if (!id) return;
-    // สลับสถานะระหว่าง 'กำลังทำ' และ 'เสร็จสิ้น'
-    const newStatus = (currentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';
+    // 1. เช็ค ID ก่อนเลย ถ้าไม่มี ID ไม่ต้องทำต่อ
+    if (!id) {
+      console.error("Error: Order ID is undefined");
+      return;
+    }
+
+    // 2. กำหนดสถานะใหม่ ถ้าสถานะปัจจุบันไม่มีค่า ให้ถือว่าเป็น 'กำลังทำ' ไว้ก่อน
+    const safeCurrentStatus = currentStatus || 'กำลังทำ';
+    const newStatus = (safeCurrentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';
     
     try {
       const res = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }), // ส่งค่า status ใหม่ไปใน Body
+        // 3. ส่งข้อมูลไป โดยเช็คอีกทีว่าต้องไม่ใช่ undefined
+        body: JSON.stringify({ 
+          status: newStatus ?? null 
+        }),
       });
 
       if (res.ok) {
-        fetchAllData(); // รีเฟรชข้อมูลหน้าจอ
+        fetchAllData(); 
       } else {
-        alert("ไม่สามารถเปลี่ยนสถานะได้");
+        const errorData = await res.json();
+        console.error("API Error:", errorData);
+        alert("ไม่สามารถเปลี่ยนสถานะได้: " + (errorData.error || "Unknown Error"));
       }
     } catch (error) {
       console.error("Update failed:", error);
@@ -264,13 +275,15 @@ export default function RestaurantPOS() {
                       <div className="flex gap-6 items-center">
                         <span className="font-black text-indigo-600 text-lg">#{order.id}</span>
                         <button 
-                          onClick={(e) => { e.stopPropagation(); handleUpdateOrderStatus(order.id, order.status); }}
-                          className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all transform hover:scale-110 active:scale-95 ${
-                            order.status === 'เสร็จสิ้น' ? 'bg-green-500 text-white shadow-lg shadow-green-100' : 'bg-amber-400 text-white shadow-lg shadow-amber-100'
-                          }`}
-                        >
-                          {order.status || 'กำลังทำ'}
-                        </button>
+  onClick={(e) => { 
+    e.stopPropagation(); 
+    // ต้องมีทั้ง order.id และ order.status
+    handleUpdateOrderStatus(order.id, order.status); 
+  }}
+  className={...}
+>
+  {order.status || 'กำลังทำ'}
+</button>
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">{new Date(order.created_at).toLocaleString('th-TH')}</span>
                       </div>
                       <div className="flex items-center gap-8">
