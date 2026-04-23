@@ -114,13 +114,11 @@ export default function RestaurantPOS() {
   };
 
   // --- ฟังก์ชันอัปเดตสถานะออเดอร์ (กำลังทำ -> เสร็จสิ้น) ---
-  const updateOrderStatus = async (orderId, newStatus) => {
-  try {
-    const res = await fetch(`/api/orders/${orderId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
-    });
+  const res = await fetch(`/api/orders/${orderId}`, {
+  method: 'PATCH', // <--- ตรงนี้ต้องเป็น PATCH ห้ามเป็น POST หรือ GET
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ status: 'เสร็จสิ้น' }),
+});
 
     if (res.ok) {
       fetchAllData(); // ดึงข้อมูลใหม่มาโชว์ทันที
