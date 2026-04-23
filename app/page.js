@@ -232,14 +232,15 @@ export default function RestaurantPOS() {
                     <div onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)} className="flex justify-between items-center p-6 cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-colors">
                       <div className="flex gap-6 items-center">
                         <span className="font-black text-indigo-600 text-lg">#{order.id}</span>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleUpdateOrderStatus(order.id, order.status); }}
-                          className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all transform hover:scale-110 active:scale-95 ${
-                            order.status === 'เสร็จสิ้น' ? 'bg-green-500 text-white shadow-lg' : 'bg-amber-400 text-white shadow-lg'
-                          }`}
-                        >
-                          {order.status || 'กำลังทำ'}
-                        </button>
+                        <<button 
+  onClick={(e) => { 
+    e.stopPropagation(); 
+    handleUpdateOrderStatus(order.id, order.status); // <--- ต้องเป็น order.id เท่านั้น
+  }}
+  className={...}
+>
+  {order.status || 'กำลังทำ'}
+</button>
                         <span className="text-xs font-bold text-slate-400">{new Date(order.created_at).toLocaleString('th-TH')}</span>
                       </div>
                       <div className="flex items-center gap-8">

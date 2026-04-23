@@ -3,24 +3,24 @@ import { mysqlPool } from "@/utils/db";
 
 export async function PATCH(req, { params }) {
   try {
+    // ดึง id จาก URL (Next.js Dynamic Route)
     const { id } = params; 
     const body = await req.json();
-    
-    // ดึงค่า status ออกมา ถ้าไม่มีให้เป็น 'เสร็จสิ้น' ไปเลย (หรือค่าที่คุณต้องการ)
     const newStatus = body.status || 'เสร็จสิ้น';
 
-    if (!id) {
-      return NextResponse.json({ error: "ไม่พบรหัสออเดอร์" }, { status: 400 });
-    }
+    if (!id) return NextResponse.json({ error: "ไม่พบ ID ในคำขอ" }, { status: 400 });
 
     const [result] = await mysqlPool.execute(
       "UPDATE orders SET status = ? WHERE id = ?",
       [newStatus, id]
     );
 
-    return NextResponse.json({ message: "อัปเดตสถานะสำเร็จ" });
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ error: `ไม่พบรหัสออเดอร์ #${id} ในฐานข้อมูล` }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: "อัปเดตสำเร็จ" });
   } catch (error) {
-    console.error("PATCH Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
