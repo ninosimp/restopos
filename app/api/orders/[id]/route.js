@@ -6,23 +6,19 @@ export async function PATCH(req, { params }) {
     const { id } = params; 
     const body = await req.json();
     
-    // ดึงค่า status ออกมา ถ้าไม่มีค่าให้เป็น null (SQL จะยอมรับ)
-    const status = body.status !== undefined ? body.status : null;
+    // ดึงค่า status ออกมา ถ้าไม่มีให้เป็น 'เสร็จสิ้น' ไปเลย (หรือค่าที่คุณต้องการ)
+    const newStatus = body.status || 'เสร็จสิ้น';
 
-    if (!id || status === null) {
-      return NextResponse.json({ error: "ข้อมูล ID หรือ Status ไม่ถูกต้อง" }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: "ไม่พบรหัสออเดอร์" }, { status: 400 });
     }
 
     const [result] = await mysqlPool.execute(
       "UPDATE orders SET status = ? WHERE id = ?",
-      [status, id]
+      [newStatus, id]
     );
 
-    if (result.affectedRows === 0) {
-      return NextResponse.json({ error: "ไม่พบออเดอร์ที่ระบุ" }, { status: 404 });
-    }
-
-    return NextResponse.json({ message: "อัปเดตสำเร็จ" });
+    return NextResponse.json({ message: "อัปเดตสถานะสำเร็จ" });
   } catch (error) {
     console.error("PATCH Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

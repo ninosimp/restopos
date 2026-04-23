@@ -95,16 +95,23 @@ export default function RestaurantPOS() {
   // --- ฟังก์ชันอัปเดตสถานะ (PATCH) ป้องกัน undefined โดยส่ง null แทน ---
   const handleUpdateOrderStatus = async (id, currentStatus) => {
     if (!id) return;
-    const safeCurrentStatus = currentStatus || 'กำลังทำ';
-    const newStatus = (safeCurrentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';
+    const nextStatus = (currentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';
+    
     try {
       const res = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus ?? null }), // แก้เป็น null ให้แล้วครับ
+        body: JSON.stringify({ 
+          status: nextStatus // ห้ามเปลี่ยนชื่อตัวแปรนี้นะครับ ต้องชื่อ status เท่านั้น
+        }),
       });
-      if (res.ok) { fetchAllData(); }
-    } catch (error) { console.error("Update failed:", error); }
+
+      if (res.ok) {
+        fetchAllData(); 
+      }
+    } catch (error) {
+      console.error("Update failed:", error);
+    }
   };
 
   const categories = ["All", ...new Set((Array.isArray(menus) ? menus : []).map((m) => m.category))];
