@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { mysqlPool } from "@/utils/db";
 
-export async function PATCH(req, { params }) {
+// เปลี่ยนจาก { params } เป็น context แทน
+export async function PATCH(req, context) {
   try {
-    const { id } = params; 
+    // 💥 จุดสำคัญที่สุด: ต้องใส่ await ก่อนแกะกล่อง params 💥
+    const params = await context.params;
+    const id = params.id; 
+
     const body = await req.json();
     
-    // ตรวจสอบว่า id เป็นตัวเลขหรือไม่ และไม่ใช่คำว่า 'undefined'
+    // ตรวจสอบว่า id เป็นตัวเลขหรือไม่
     if (!id || id === 'undefined') {
       return NextResponse.json({ error: "Invalid Order ID" }, { status: 400 });
     }
