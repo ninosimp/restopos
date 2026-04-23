@@ -11,18 +11,18 @@ export default function RestaurantPOS() {
   // --- States สำหรับตัวกรองและค้นหา ---
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
-  const [orderFilter, setOrderFilter] = useState("All"); // ตัวกรองสถานะออเดอร์
+  const [orderFilter, setOrderFilter] = useState("All"); 
   
   // --- States สำหรับ CRUD เมนู ---
   const [form, setForm] = useState({ name: "", price: "", category: "", image_url: "" });
   const [editId, setEditId] = useState(null);
 
-  // --- States สำหรับบิล, การชำระเงิน และการแสดงผล ---
+  // --- States สำหรับบิลและการแสดงผล ---
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("เงินสด");
   const [showBill, setShowBill] = useState(false);
   const [lastBill, setLastBill] = useState(null);
-  const [expandedOrderId, setExpandedOrderId] = useState(null); // ควบคุมการกางดูบิล
+  const [expandedOrderId, setExpandedOrderId] = useState(null);
 
   // --- ดึงข้อมูลทั้งหมดจาก API ---
   const fetchAllData = async () => {
@@ -78,13 +78,11 @@ export default function RestaurantPOS() {
   const removeFromCart = (id) => setCart(cart.filter((item) => item.id !== id));
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-  // --- ฟังก์ชันเรียกหน้าชำระเงิน ---
   const handleCheckout = () => {
     if (cart.length === 0) return alert("กรุณาเลือกรายการอาหาร");
     setShowPaymentModal(true);
   };
 
-  // --- ฟังก์ชันยืนยันการจ่ายเงินและบันทึกบิล ---
   const confirmPayment = async () => {
     try {
       const res = await fetch("/api/orders", {
@@ -116,11 +114,12 @@ export default function RestaurantPOS() {
     }
   };
 
-  // --- แก้ไขจุดนี้: ฟังก์ชันอัปเดตสถานะออเดอร์ (เติม async และจัดโครงสร้างใหม่) ---
-  const handleUpdateOrderStatus = async (orderId, currentStatus) => {
-    const newStatus = currentStatus === 'เสร็จสิ้น' ? 'กำลังทำ' : 'เสร็จสิ้น';
+  // --- ฟังก์ชันอัปเดตสถานะ (PATCH) ---
+  const handleUpdateOrderStatus = async (id, currentStatus) => {
+    if (!id) return;
+    const newStatus = (currentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -136,7 +135,7 @@ export default function RestaurantPOS() {
     }
   };
 
-  // --- ตัวกรองค้นหาเมนู ---
+  // --- ตัวกรองต่างๆ ---
   const categories = ["All", ...new Set((Array.isArray(menus) ? menus : []).map((m) => m.category))];
   const filteredMenus = (Array.isArray(menus) ? menus : []).filter((m) =>
     (filterCategory === "All" || m.category === filterCategory) &&
@@ -163,6 +162,7 @@ export default function RestaurantPOS() {
 
       <main className="p-6">
         {viewMode === "pos" ? (
+          /* โหมดหน้าร้าน */
           <div className="flex gap-8 h-[calc(100vh-140px)]">
             <div className="panel-card flex-1 flex flex-col overflow-hidden">
               <input type="text" placeholder="🔍 ค้นหาเมนูอาหาร..." value={search} onChange={(e) => setSearch(e.target.value)} className="input-field mb-6" />
@@ -225,6 +225,7 @@ export default function RestaurantPOS() {
             </div>
           </div>
         ) : (
+          /* โหมดหลังบ้าน */
           <div className="max-w-7xl mx-auto flex flex-col gap-8 animate-in fade-in duration-500">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="panel-card bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-none shadow-indigo-200 shadow-2xl">
@@ -282,7 +283,7 @@ export default function RestaurantPOS() {
                           {Array.isArray(order.items) && order.items.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-sm items-center border-b border-slate-50 pb-2">
                               <span className="text-slate-600 font-bold">{item.name} <span className="text-slate-300 ml-2">x{item.qty}</span></span>
-                              <span className="font-black text-slate-900">฿{(item.price * item.qty).toLocaleString()}</span>
+                              <span className="font-black text-slate-900">฿{(Number(item.price) * item.qty).toLocaleString()}</span>
                             </div>
                           ))}
                         </div>
@@ -293,6 +294,7 @@ export default function RestaurantPOS() {
               </div>
             </div>
 
+            {/* ส่วนจัดการเมนู */}
             <div className="flex flex-col lg:flex-row gap-8 items-start">
               <div className="panel-card flex-1 w-full overflow-hidden">
                 <h2 className="text-2xl font-black mb-8">Menu Management</h2>
@@ -346,30 +348,27 @@ export default function RestaurantPOS() {
       {/* Payment Selection Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-[3rem] shadow-[0_30px_100px_rgba(0,0,0,0.3)] p-10 overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-white w-full max-md rounded-[3rem] shadow-[0_30px_100px_rgba(0,0,0,0.3)] p-10 overflow-hidden animate-in zoom-in-95 duration-300">
             <h2 className="text-3xl font-black text-slate-800 mb-2 tracking-tighter">PAYMENT</h2>
-            <p className="text-slate-400 font-bold text-sm mb-8">เลือกวิธีการชำระเงินสำหรับบิลนี้</p>
-            <div className="grid grid-cols-2 gap-4 mb-8">
-              <div onClick={() => setPaymentMethod("เงินสด")} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex flex-col items-center gap-3 ${paymentMethod === "เงินสด" ? "border-indigo-600 bg-indigo-50 shadow-lg shadow-indigo-100" : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}>
-                <span className="text-4xl drop-shadow-sm">💵</span>
+            <div className="grid grid-cols-2 gap-4 my-8">
+              <div onClick={() => setPaymentMethod("เงินสด")} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex flex-col items-center gap-3 ${paymentMethod === "เงินสด" ? "border-indigo-600 bg-indigo-50" : "border-slate-100"}`}>
+                <span className="text-4xl">💵</span>
                 <span className="font-black text-sm uppercase tracking-widest text-slate-700">Cash</span>
               </div>
-              <div onClick={() => setPaymentMethod("PromptPay")} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex flex-col items-center gap-3 ${paymentMethod === "PromptPay" ? "border-indigo-600 bg-indigo-50 shadow-lg shadow-indigo-100" : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}>
-                <span className="text-4xl drop-shadow-sm">📱</span>
+              <div onClick={() => setPaymentMethod("PromptPay")} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex flex-col items-center gap-3 ${paymentMethod === "PromptPay" ? "border-indigo-600 bg-indigo-50" : "border-slate-100"}`}>
+                <span className="text-4xl">📱</span>
                 <span className="font-black text-sm uppercase tracking-widest text-slate-700">PromptPay</span>
               </div>
             </div>
             {paymentMethod === "PromptPay" && (
-              <div className="bg-slate-50 p-6 rounded-3xl mb-8 flex flex-col items-center animate-in fade-in slide-in-from-bottom-4">
-                <p className="text-[10px] font-black text-slate-400 mb-4 tracking-[0.2em] uppercase">Scan to Pay <span className="text-indigo-600">฿{cartTotal.toLocaleString()}</span></p>
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PROMPTPAY_${cartTotal}`} alt="QR Code" className="w-32 h-32" />
-                </div>
+              <div className="bg-slate-50 p-6 rounded-3xl mb-8 flex flex-col items-center">
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PROMPTPAY_${cartTotal}`} alt="QR Code" className="w-32 h-32 mb-4" />
+                <p className="text-indigo-600 font-bold text-xl">฿{cartTotal.toLocaleString()}</p>
               </div>
             )}
-            <div className="flex gap-4 mt-8">
-              <button onClick={confirmPayment} className="btn-primary flex-1 shadow-indigo-100">ยืนยันการชำระเงิน</button>
-              <button onClick={() => setShowPaymentModal(false)} className="btn-outline border-none bg-slate-50 text-slate-400 hover:bg-slate-100">ยกเลิก</button>
+            <div className="flex gap-4">
+              <button onClick={confirmPayment} className="btn-primary flex-1">ยืนยันการชำระเงิน</button>
+              <button onClick={() => setShowPaymentModal(false)} className="btn-outline border-none bg-slate-50 text-slate-400">ยกเลิก</button>
             </div>
           </div>
         </div>
@@ -377,51 +376,32 @@ export default function RestaurantPOS() {
 
       {/* Bill Receipt Modal */}
       {showBill && lastBill && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300 print:bg-white print:p-0 print:items-start">
-          <div className="bg-white w-full max-w-sm rounded-[3rem] shadow-[0_30px_100px_rgba(0,0,0,0.3)] p-12 overflow-hidden transform animate-in zoom-in-95 duration-300 print:rounded-none print:shadow-none print:p-6 print:max-w-[80mm] print:mx-auto">
-            <div id="receipt" className="text-center text-slate-900 print:text-black">
-              <span className="text-6xl block mb-6 drop-shadow-lg print:drop-shadow-none print:text-4xl print:mb-3">🍔</span>
-              <h2 className="text-3xl font-black tracking-tighter mb-2 print:text-2xl">RESTOPOS</h2>
-              <p className="text-[10px] font-black text-slate-400 uppercase mb-8 tracking-[0.3em] print:text-black print:mb-4">
-                Bill #{lastBill.orderId} <br className="hidden print:block" /> {lastBill.date}
-              </p>
-              <div className="space-y-4 mb-6 border-t-2 border-dashed border-slate-100 pt-8 print:pt-4 print:mb-4 print:border-black print:space-y-2">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 print:bg-white">
+          <div className="bg-white w-full max-w-sm rounded-[3rem] p-12 print:shadow-none print:max-w-[80mm]">
+            <div className="text-center">
+              <span className="text-6xl block mb-6">🍔</span>
+              <h2 className="text-3xl font-black mb-2">RESTOPOS</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-8">Bill #{lastBill.orderId} - {lastBill.date}</p>
+              <div className="space-y-4 mb-6 border-t-2 border-dashed border-slate-100 pt-8">
                 {lastBill.items.map((it) => (
-                  <div key={it.id} className="flex justify-between text-sm font-black print:text-xs">
-                    <span className="text-slate-500 print:text-black">{it.name} <span className="text-slate-300 text-[10px] ml-1 print:text-black">x{it.qty}</span></span>
-                    <span className="text-slate-800 print:text-black">฿{(it.price * it.qty).toLocaleString()}</span>
+                  <div key={it.id} className="flex justify-between text-sm font-black">
+                    <span>{it.name} x{it.qty}</span>
+                    <span>฿{(it.price * it.qty).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
-              <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 pb-6 border-b-2 border-dashed border-slate-100 print:border-black print:mb-4 print:pb-4 print:text-black">
-                <span>Payment Method</span>
-                <span className="text-slate-700 print:text-black">{lastBill.paymentMethod}</span>
-              </div>
-              <div className="flex justify-between items-center mb-10 print:mb-6">
-                <span className="font-black text-slate-400 text-xs uppercase tracking-widest print:text-black">Total</span>
-                <span className="text-5xl font-black text-indigo-600 tracking-tighter print:text-black print:text-2xl">฿{lastBill.total.toLocaleString()}</span>
-              </div>
-              <p className="text-slate-300 text-[9px] font-bold italic uppercase mb-2 print:text-black">Thank you! Please come again</p>
-              <div className="flex justify-center gap-1 opacity-10 print:hidden">
-                {[...Array(24)].map((_, i) => <div key={i} className="w-1 h-6 bg-black rounded-full" />)}
+              <div className="flex justify-between mb-10">
+                <span className="font-black text-slate-400 uppercase">Total</span>
+                <span className="text-5xl font-black text-indigo-600">฿{lastBill.total.toLocaleString()}</span>
               </div>
             </div>
-            <div className="flex gap-4 mt-10 print:hidden">
-              <button onClick={() => window.print()} className="btn-primary flex-1 shadow-indigo-100">PRINT</button>
-              <button onClick={() => setShowBill(false)} className="btn-outline border-none bg-slate-50 text-slate-400 hover:bg-slate-100">CLOSE</button>
+            <div className="flex gap-4 print:hidden">
+              <button onClick={() => window.print()} className="btn-primary flex-1">PRINT</button>
+              <button onClick={() => setShowBill(false)} className="btn-outline flex-1">CLOSE</button>
             </div>
           </div>
         </div>
       )}
-
-      <style jsx global>{`
-        @media print {
-          nav, main { display: none !important; }
-          body, html { background: white !important; margin: 0 !important; padding: 0 !important; }
-          * { box-shadow: none !important; text-shadow: none !important; }
-          @page { margin: 0.5cm; }
-        }
-      `}</style>
     </div>
   );
 }
