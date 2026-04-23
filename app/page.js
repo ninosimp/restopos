@@ -24,14 +24,15 @@ export default function RestaurantPOS() {
   const [lastBill, setLastBill] = useState(null);
   const [expandedOrderId, setExpandedOrderId] = useState(null); // ควบคุมการกางดูบิล
 
-  // --- ดึงข้อมูลทั้งหมดจาก API ---
+  // --- ดึงข้อมูลทั้งหมดจาก API (เพิ่มรหัสสุ่มต่อท้าย เพื่อบังคับไม่ให้ Vercel จำข้อมูลเก่า) ---
   const fetchAllData = async () => {
     try {
-      const resMenu = await fetch("/api/menus");
+      // ใส่ ?t=... เพื่อหลอกให้ระบบคิดว่าเป็น URL ใหม่เสมอ
+      const resMenu = await fetch(`/api/menus?t=${Date.now()}`, { cache: "no-store" });
       const dataMenu = await resMenu.json();
       setMenus(dataMenu);
 
-      const resOrder = await fetch("/api/orders");
+      const resOrder = await fetch(`/api/orders?t=${Date.now()}`, { cache: "no-store" });
       const dataOrder = await resOrder.json();
       setOrders(dataOrder);
     } catch (error) {
