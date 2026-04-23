@@ -238,7 +238,7 @@ export default function RestaurantPOS() {
     handleUpdateOrderStatus(order.id, order.status); // <--- ต้องเป็น order.id เท่านั้น
   }}
   className={...}
->
+>>
   {order.status || 'กำลังทำ'}
 </button>
                         <span className="text-xs font-bold text-slate-400">{new Date(order.created_at).toLocaleString('th-TH')}</span>
