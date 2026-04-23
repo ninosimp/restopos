@@ -3,12 +3,11 @@ import { mysqlPool } from "@/utils/db";
 
 export async function PATCH(req, { params }) {
   try {
-    // ดึง id จาก URL (Next.js Dynamic Route)
     const { id } = params; 
     const body = await req.json();
     const newStatus = body.status || 'เสร็จสิ้น';
 
-    if (!id) return NextResponse.json({ error: "ไม่พบ ID ในคำขอ" }, { status: 400 });
+    console.log(`Attempting to update Order ID: ${id} to Status: ${newStatus}`);
 
     const [result] = await mysqlPool.execute(
       "UPDATE orders SET status = ? WHERE id = ?",
@@ -16,11 +15,12 @@ export async function PATCH(req, { params }) {
     );
 
     if (result.affectedRows === 0) {
-      return NextResponse.json({ error: `ไม่พบรหัสออเดอร์ #${id} ในฐานข้อมูล` }, { status: 404 });
+      return NextResponse.json({ error: `ไม่พบออเดอร์ ID: ${id}` }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "อัปเดตสำเร็จ" });
+    return NextResponse.json({ message: "อัปเดตสถานะเรียบร้อย" });
   } catch (error) {
+    console.error("PATCH Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
