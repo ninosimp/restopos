@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import Swal from "sweetalert2"; // นำเข้าไลบรารี Popup แจ้งเตือนสวยๆ
 
 export default function RestaurantPOS() {
   const [menus, setMenus] = useState([]);
@@ -17,6 +18,9 @@ export default function RestaurantPOS() {
   const [lastBill, setLastBill] = useState(null);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
 
+  // --- เพิ่ม State สำหรับดักสถานะ "กำลังโหลด" ---
+  const [isLoading, setIsLoading] = useState(false);
+
   const fetchAllData = async () => {
     try {
       const resMenu = await fetch(`/api/menus?t=${Date.now()}`, { cache: "no-store" });
@@ -30,18 +34,42 @@ export default function RestaurantPOS() {
 
   useEffect(() => { fetchAllData(); }, []);
 
+  // --- ระบบบันทึก/แก้ไขเมนู (เพิ่ม Validation & Loading) ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // ดักจับไม่ให้ใส่ราคาติดลบ
+    if (form.price < 0) {
+      return Swal.fire("เดี๋ยวก่อน!", "ราคาอาหารห้ามติดลบนะครับ", "warning");
+    }
+
+    setIsLoading(true); // เริ่มหมุน Loading
     const method = editId ? "PUT" : "POST";
     const url = editId ? `/api/menus/${editId}` : "/api/menus";
-    await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setForm({ name: "", price: "", category: "", image_url: "" });
-    setEditId(null);
-    fetchAllData();
+    
+    try {
+      await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      // แจ้งเตือนเมื่อสำเร็จ
+      Swal.fire({
+        icon: 'success',
+        title: editId ? 'อัปเดตเมนูสำเร็จ!' : 'เพิ่มเมนูสำเร็จ!',
+        showConfirmButton: false,
+        timer: 1500
+      });
+
+      setForm({ name: "", price: "", category: "", image_url: "" });
+      setEditId(null);
+      fetchAllData();
+    } catch (error) {
+      Swal.fire("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้", "error");
+    } finally {
+      setIsLoading(false); // ปิด Loading
+    }
   };
 
   const handleEdit = (menu) => {
@@ -49,11 +77,31 @@ export default function RestaurantPOS() {
     setEditId(menu.id);
   };
 
+  // --- ระบบลบเมนู (เปลี่ยน Alert เป็น SweetAlert Confirm) ---
   const handleDelete = async (id) => {
-    if (confirm("ยืนยันการลบเมนูนี้?")) {
-      await fetch(`/api/menus/${id}`, { method: "DELETE" });
-      fetchAllData();
-    }
+    Swal.fire({
+      title: 'ยืนยันการลบ?',
+      text: "ลบแล้วจะไม่สามารถกู้ข้อมูลคืนได้นะครับ",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'ใช่, ลบเลย!',
+      cancelButtonText: 'ยกเลิก'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        setIsLoading(true);
+        try {
+          await fetch(`/api/menus/${id}`, { method: "DELETE" });
+          fetchAllData();
+          Swal.fire('ลบแล้ว!', 'เมนูถูกลบออกจากระบบเรียบร้อย', 'success');
+        } catch (error) {
+          Swal.fire('ผิดพลาด', 'ไม่สามารถลบเมนูได้', 'error');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    });
   };
 
   const addToCart = (menu) => {
@@ -66,11 +114,16 @@ export default function RestaurantPOS() {
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
   const handleCheckout = () => {
-    if (cart.length === 0) return alert("กรุณาเลือกรายการอาหาร");
+    if (cart.length === 0) return Swal.fire("ตะกร้าว่างเปล่า", "กรุณาเลือกรายการอาหารก่อนชำระเงินครับ", "info");
     setShowPaymentModal(true);
   };
 
+  // --- ระบบชำระเงิน (เพิ่ม Loading ระหว่างบันทึกลง Database) ---
   const confirmPayment = async () => {
+    setIsLoading(true);
+    // เปิดหน้าต่าง Loading ห้ามผู้ใช้กดซี้ซั้ว
+    Swal.fire({ title: 'กำลังบันทึกบิล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
@@ -82,7 +135,6 @@ export default function RestaurantPOS() {
         }),
       });
       
-      // ดึงข้อมูลที่ Database ตอบกลับมา (ซึ่งจะมี id จริงอยู่ข้างใน)
       const result = await res.json();
 
       if (res.ok) {
@@ -90,42 +142,47 @@ export default function RestaurantPOS() {
           items: [...cart], 
           total: cartTotal,
           date: new Date().toLocaleString("th-TH"),
-          // *** แก้ไขบรรทัดนี้: ใช้ result.id แทนการสุ่มเลข ***
           orderId: result.id,
           paymentMethod: paymentMethod 
         });
         setShowPaymentModal(false);
         setShowBill(true); 
         setCart([]); 
-        fetchAllData(); // เพื่อดึงข้อมูลใหม่ที่มี ID ถูกต้องมาแสดงบนตาราง
+        fetchAllData(); 
+        Swal.close(); // ปิดหน้าต่าง Loading
       } else { 
-        alert("เกิดข้อผิดพลาดในการบันทึกบิล"); 
+        Swal.fire("ข้อผิดพลาด", "เกิดข้อผิดพลาดในการบันทึกบิล", "error");
       }
-    } catch (error) { console.error("Payment failed:", error); }
+    } catch (error) { 
+      Swal.fire("ข้อผิดพลาด", "การเชื่อมต่อมีปัญหา", "error");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // --- ฟังก์ชันอัปเดตสถานะ (PATCH) ป้องกัน undefined โดยส่ง null แทน ---
+  // --- ระบบเปลี่ยนสถานะออเดอร์ (เพิ่ม Toast แจ้งเตือนมุมขวาบน) ---
   const handleUpdateOrderStatus = async (id, currentStatus) => {
-    // เพิ่มการเช็ค: ถ้าไม่มี id หลุดเข้ามา ให้หยุดทำงานทันที ไม่ต้องส่งไปหา API
-    if (!id || id === 'undefined') {
-      console.error("ID is missing!");
-      return;
-    }
-
+    if (!id || id === 'undefined') return;
     const nextStatus = (currentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';
     
     try {
-      // ใช้ id ที่ส่งเข้ามาประกอบเป็น URL
       const res = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          status: nextStatus 
-        }),
+        body: JSON.stringify({ status: nextStatus }),
       });
 
       if (res.ok) {
         fetchAllData(); 
+        // โชว์ Toast เล็กๆ มุมขวาบน จะได้ไม่บังจอ
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: `อัปเดตบิล #${id} เป็น '${nextStatus}'`,
+          showConfirmButton: false,
+          timer: 2000
+        });
       }
     } catch (error) {
       console.error("Update failed:", error);
@@ -167,9 +224,10 @@ export default function RestaurantPOS() {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 overflow-y-auto pr-2">
                 {filteredMenus.map((menu) => (
-                  <div key={menu.id} onClick={() => addToCart(menu)} className="group menu-item">
-                    <div className="overflow-hidden rounded-[1.5rem] mb-3 shadow-inner bg-slate-100">
+                  <div key={menu.id} onClick={() => addToCart(menu)} className="group menu-item cursor-pointer">
+                    <div className="overflow-hidden rounded-[1.5rem] mb-3 shadow-inner bg-slate-100 relative">
                       <img src={menu.image_url || "https://placehold.co/400x300?text=Food"} className="w-full h-36 object-cover group-hover:scale-110 transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300"></div>
                     </div>
                     <h3 className="font-bold text-slate-800 truncate">{menu.name}</h3>
                     <div className="flex justify-between items-center mt-1">
@@ -212,7 +270,9 @@ export default function RestaurantPOS() {
                   <span className="text-slate-400 text-sm self-center uppercase tracking-widest">Grand Total</span>
                   <span>฿{cartTotal.toLocaleString()}</span>
                 </div>
-                <button onClick={handleCheckout} className="btn-primary py-5 text-xl"><span>💸</span> CHECKOUT</button>
+                <button onClick={handleCheckout} disabled={isLoading} className="btn-primary py-5 text-xl disabled:opacity-50 transition-all">
+                  <span>💸</span> CHECKOUT
+                </button>
               </div>
             </div>
           </div>
@@ -251,16 +311,16 @@ export default function RestaurantPOS() {
                       <div className="flex gap-6 items-center">
                         <span className="font-black text-indigo-600 text-lg">#{order.id}</span>
                         <button 
-  onClick={(e) => { 
-    e.stopPropagation(); 
-    handleUpdateOrderStatus(order.id, order.status); 
-  }}
-  className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-    order.status === 'เสร็จสิ้น' ? 'bg-green-500 text-white' : 'bg-amber-400 text-white'
-  }`}
->
-  {order.status || 'กำลังทำ'}
-</button>
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            handleUpdateOrderStatus(order.id, order.status); 
+                          }}
+                          className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all transform hover:scale-110 active:scale-95 ${
+                            order.status === 'เสร็จสิ้น' ? 'bg-green-500 text-white shadow-md' : 'bg-amber-400 text-white shadow-md'
+                          }`}
+                        >
+                          {order.status || 'กำลังทำ'}
+                        </button>
                         <span className="text-xs font-bold text-slate-400">{new Date(order.created_at).toLocaleString('th-TH')}</span>
                       </div>
                       <div className="flex items-center gap-8">
@@ -274,7 +334,7 @@ export default function RestaurantPOS() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
                           {Array.isArray(order.items) && order.items.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-sm border-b border-slate-50 pb-2">
-                              <span className="text-slate-600 font-bold">{item.name} x{item.qty}</span>
+                              <span className="text-slate-600 font-bold">{item.name} <span className="text-slate-300 text-[10px] ml-1">x{item.qty}</span></span>
                               <span className="font-black text-slate-900">฿{(Number(item.price) * item.qty).toLocaleString()}</span>
                             </div>
                           ))}
@@ -306,8 +366,8 @@ export default function RestaurantPOS() {
                           <td className="p-6"><span className="category-badge">{m.category}</span></td>
                           <td className="p-6 font-black text-indigo-600">฿{m.price}</td>
                           <td className="p-6 text-center space-x-6">
-                            <button onClick={() => handleEdit(m)} className="text-amber-500 font-black text-xs uppercase hover:text-amber-600">Edit</button>
-                            <button onClick={() => handleDelete(m.id)} className="text-red-400 font-black text-xs uppercase hover:text-red-600">Delete</button>
+                            <button onClick={() => handleEdit(m)} disabled={isLoading} className="text-amber-500 font-black text-xs uppercase hover:text-amber-600 disabled:opacity-50">Edit</button>
+                            <button onClick={() => handleDelete(m.id)} disabled={isLoading} className="text-red-400 font-black text-xs uppercase hover:text-red-600 disabled:opacity-50">Delete</button>
                           </td>
                         </tr>
                       ))}
@@ -319,14 +379,28 @@ export default function RestaurantPOS() {
               <div className="panel-card w-full lg:w-[400px] h-fit sticky top-28 border-t-4 border-indigo-500">
                 <h2 className="text-2xl font-black mb-6 uppercase tracking-tighter">{editId ? "✏️ Edit Item" : "➕ Add New Item"}</h2>
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  <div><label className="input-label">Food Name</label><input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" required /></div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><label className="input-label">Price (฿)</label><input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="input-field" required /></div>
-                    <div><label className="input-label">Category</label><input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field" required /></div>
+                  <div>
+                    <label className="input-label">Food Name</label>
+                    <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" required />
                   </div>
-                  <div><label className="input-label">Image URL</label><input type="text" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} className="input-field" placeholder="https://..." /></div>
-                  <button type="submit" className={editId ? "btn-primary bg-amber-500 hover:bg-amber-600" : "btn-secondary"}>{editId ? "UPDATE MENU" : "SAVE NEW MENU"}</button>
-                  {editId && <button type="button" onClick={() => { setEditId(null); setForm({ name: "", price: "", category: "", image_url: "" }); }} className="w-full text-slate-400 font-bold py-2 mt-2">Cancel</button>}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="input-label">Price (฿)</label>
+                      <input type="number" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="input-field" required />
+                    </div>
+                    <div>
+                      <label className="input-label">Category</label>
+                      <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field" required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="input-label">Image URL</label>
+                    <input type="text" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} className="input-field" placeholder="https://..." />
+                  </div>
+                  <button type="submit" disabled={isLoading} className={`w-full ${editId ? "btn-primary bg-amber-500 hover:bg-amber-600" : "btn-secondary"} disabled:opacity-50 transition-all`}>
+                    {isLoading ? "PROCESSING..." : (editId ? "UPDATE MENU" : "SAVE NEW MENU")}
+                  </button>
+                  {editId && <button type="button" disabled={isLoading} onClick={() => { setEditId(null); setForm({ name: "", price: "", category: "", image_url: "" }); }} className="w-full text-slate-400 font-bold py-2 mt-2 disabled:opacity-50">Cancel</button>}
                 </form>
               </div>
             </div>
@@ -334,52 +408,61 @@ export default function RestaurantPOS() {
         )}
       </main>
 
+      {/* Payment Selection Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-md rounded-[3rem] p-10 overflow-hidden">
+          <div className="bg-white w-full max-w-md rounded-[3rem] p-10 overflow-hidden shadow-2xl">
             <h2 className="text-3xl font-black text-slate-800 mb-2">PAYMENT</h2>
             <div className="grid grid-cols-2 gap-4 my-8">
-              <div onClick={() => setPaymentMethod("เงินสด")} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex flex-col items-center gap-3 ${paymentMethod === "เงินสด" ? "border-indigo-600 bg-indigo-50" : "border-slate-100"}`}>
+              <div onClick={() => setPaymentMethod("เงินสด")} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex flex-col items-center gap-3 ${paymentMethod === "เงินสด" ? "border-indigo-600 bg-indigo-50 shadow-md" : "border-slate-100 hover:border-slate-200"}`}>
                 <span className="text-4xl">💵</span><span className="font-black text-sm uppercase text-slate-700">Cash</span>
               </div>
-              <div onClick={() => setPaymentMethod("PromptPay")} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex flex-col items-center gap-3 ${paymentMethod === "PromptPay" ? "border-indigo-600 bg-indigo-50" : "border-slate-100"}`}>
+              <div onClick={() => setPaymentMethod("PromptPay")} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex flex-col items-center gap-3 ${paymentMethod === "PromptPay" ? "border-indigo-600 bg-indigo-50 shadow-md" : "border-slate-100 hover:border-slate-200"}`}>
                 <span className="text-4xl">📱</span><span className="font-black text-sm uppercase text-slate-700">PromptPay</span>
               </div>
             </div>
             {paymentMethod === "PromptPay" && (
               <div className="bg-slate-50 p-6 rounded-3xl mb-8 flex flex-col items-center">
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PROMPTPAY_${cartTotal}`} alt="QR Code" className="w-32 h-32 mb-4" />
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PROMPTPAY_${cartTotal}`} alt="QR Code" className="w-32 h-32 mb-4 rounded-xl" />
                 <p className="text-indigo-600 font-bold text-xl">฿{cartTotal.toLocaleString()}</p>
               </div>
             )}
             <div className="flex gap-4">
-              <button onClick={confirmPayment} className="btn-primary flex-1">ยืนยันการชำระเงิน</button>
-              <button onClick={() => setShowPaymentModal(false)} className="btn-outline border-none bg-slate-50 text-slate-400">ยกเลิก</button>
+              <button onClick={confirmPayment} disabled={isLoading} className="btn-primary flex-1 disabled:opacity-50">ยืนยันการชำระเงิน</button>
+              <button onClick={() => setShowPaymentModal(false)} disabled={isLoading} className="btn-outline border-none bg-slate-50 text-slate-400 hover:bg-slate-100 disabled:opacity-50">ยกเลิก</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Bill Receipt Modal */}
       {showBill && lastBill && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 print:bg-white">
-          <div className="bg-white w-full max-w-sm rounded-[3rem] p-12">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 print:bg-white print:p-0">
+          <div className="bg-white w-full max-w-sm rounded-[3rem] p-12 shadow-2xl print:shadow-none print:max-w-[80mm] print:p-4 print:m-0">
             <div className="text-center">
-              <span className="text-6xl block mb-6">🍔</span>
-              <h2 className="text-3xl font-black mb-2">RESTOPOS</h2>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-8">Bill #{lastBill.orderId} - {lastBill.date}</p>
-              <div className="space-y-4 mb-6 border-t-2 border-dashed border-slate-100 pt-8">
+              <span className="text-6xl block mb-6 print:mb-2 print:text-4xl">🍔</span>
+              <h2 className="text-3xl font-black mb-2 print:text-xl">RESTOPOS</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-8 print:mb-4 print:text-black">Bill #{lastBill.orderId} <br className="hidden print:block"/> {lastBill.date}</p>
+              <div className="space-y-4 mb-6 border-t-2 border-dashed border-slate-100 pt-8 print:pt-4 print:mb-4 print:border-black">
                 {lastBill.items.map((it) => (
-                  <div key={it.id} className="flex justify-between text-sm font-black">
-                    <span>{it.name} x{it.qty}</span>
+                  <div key={it.id} className="flex justify-between text-sm font-black print:text-xs">
+                    <span>{it.name} <span className="text-[10px] text-slate-400 ml-1 print:text-black">x{it.qty}</span></span>
                     <span>฿{(it.price * it.qty).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
-              <div className="flex justify-between mb-10"><span className="font-black text-slate-400 uppercase">Total</span><span className="text-5xl font-black text-indigo-600">฿{lastBill.total.toLocaleString()}</span></div>
+              <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 pb-6 border-b-2 border-dashed border-slate-100 print:border-black print:mb-4 print:pb-4 print:text-black">
+                <span>Payment</span>
+                <span className="text-slate-700 print:text-black">{lastBill.paymentMethod}</span>
+              </div>
+              <div className="flex justify-between items-center mb-10 print:mb-6">
+                <span className="font-black text-slate-400 uppercase text-xs print:text-black">Total</span>
+                <span className="text-5xl font-black text-indigo-600 print:text-2xl print:text-black">฿{lastBill.total.toLocaleString()}</span>
+              </div>
             </div>
             <div className="flex gap-4 print:hidden">
               <button onClick={() => window.print()} className="btn-primary flex-1">PRINT</button>
-              <button onClick={() => setShowBill(false)} className="btn-outline flex-1">CLOSE</button>
+              <button onClick={() => setShowBill(false)} className="btn-outline flex-1 bg-slate-50 border-none hover:bg-slate-100">CLOSE</button>
             </div>
           </div>
         </div>
