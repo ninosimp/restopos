@@ -102,7 +102,7 @@ export default function RestaurantPOS() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          status: nextStatus // ห้ามเปลี่ยนชื่อตัวแปรนี้นะครับ ต้องชื่อ status เท่านั้น
+          status: nextStatus // ส่งชื่อให้ตรงกับที่หลังบ้านรอรับ
         }),
       });
 
