@@ -124,14 +124,14 @@ export default function RestaurantPOS() {
   };
 
   // --- ตัวกรองค้นหาเมนู ---
-  const categories = ["All", ...new Set(menus.map((m) => m.category))];
-  const filteredMenus = menus.filter((m) => 
+  const categories = ["All", ...new Set((Array.isArray(menus) ? menus : []).map((m) => m.category))];
+  const filteredMenus = (Array.isArray(menus) ? menus : []).filter((m) =>
     (filterCategory === "All" || m.category === filterCategory) &&
     (m.name.toLowerCase().includes(search.toLowerCase()))
   );
 
   // --- ตัวกรองสถานะบิล ---
-  const filteredOrdersList = orders.filter((o) => {
+  const filteredOrdersList = (Array.isArray(orders) ? orders : []).filter((o) => {
     if (orderFilter === "All") return true;
     return (o.status || 'กำลังทำ') === orderFilter;
   });
@@ -232,15 +232,15 @@ export default function RestaurantPOS() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="panel-card bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-none shadow-indigo-200 shadow-2xl">
                 <h3 className="text-indigo-200 font-bold uppercase tracking-widest text-xs mb-2">Total Revenue</h3>
-                <p className="text-5xl font-black tracking-tighter">฿{orders.reduce((sum, o) => sum + Number(o.total_price), 0).toLocaleString()}</p>
+                <p className="text-5xl font-black tracking-tighter">฿{(Array.isArray(orders) ? orders : []).reduce((sum, o) => sum + Number(o.total_price), 0).toLocaleString()}</p>
               </div>
               <div className="panel-card">
                 <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-2">Orders Today</h3>
-                <p className="text-5xl font-black text-slate-800 tracking-tighter">{orders.length} <span className="text-lg text-slate-300 ml-2">Bills</span></p>
+                <p className="text-5xl font-black text-slate-800 tracking-tighter">{(Array.isArray(orders) ? orders : []).length} <span className="text-lg text-slate-300 ml-2">Bills</span></p>
               </div>
               <div className="panel-card">
                 <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-2">Avg. Ticket Size</h3>
-                <p className="text-5xl font-black text-slate-800 tracking-tighter">฿{orders.length > 0 ? Math.round(orders.reduce((sum, o) => sum + Number(o.total_price), 0) / orders.length).toLocaleString() : 0}</p>
+                <p className="text-5xl font-black text-slate-800 tracking-tighter">฿{(Array.isArray(orders) ? orders : []).length > 0 ? Math.round((Array.isArray(orders) ? orders : []).reduce((sum, o) => sum + Number(o.total_price), 0) / (Array.isArray(orders) ? orders : []).length).toLocaleString() : 0}</p>
               </div>
             </div>
 
@@ -323,7 +323,7 @@ export default function RestaurantPOS() {
                       <tr><th className="p-6">Menu</th><th className="p-6">Category</th><th className="p-6">Price</th><th className="p-6 text-center">Actions</th></tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {menus.map((m) => (
+                      {(Array.isArray(menus) ? menus : []).map((m) => (
                         <tr key={m.id} className="hover:bg-slate-50/80 transition-colors group">
                           <td className="p-6">
                             <div className="flex items-center gap-4">
