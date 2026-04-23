@@ -77,18 +77,24 @@ export default function RestaurantPOS() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ total_price: cartTotal, items: cart, payment_method: paymentMethod }),
       });
+      
+      const result = await res.json(); // ดึงข้อมูลที่ Database ตอบกลับมา
+
       if (res.ok) {
         setLastBill({
-          items: [...cart], total: cartTotal,
+          items: [...cart], 
+          total: cartTotal,
           date: new Date().toLocaleString("th-TH"),
-          orderId: Math.floor(100000 + Math.random() * 900000),
+          orderId: result.id, // *** สำคัญมาก: ต้องใช้ ID จริงจาก Database (result.id) ไม่ใช่เลขสุ่ม
           paymentMethod: paymentMethod 
         });
         setShowPaymentModal(false);
         setShowBill(true); 
         setCart([]); 
-        fetchAllData();
-      } else { alert("เกิดข้อผิดพลาดในการบันทึกบิล"); }
+        fetchAllData(); // โหลดข้อมูลใหม่เพื่อให้หน้าจอมี ID ที่ถูกต้อง
+      } else { 
+        alert("เกิดข้อผิดพลาดในการบันทึกบิล: " + result.error); 
+      }
     } catch (error) { console.error("Payment failed:", error); }
   };
 
@@ -243,8 +249,8 @@ export default function RestaurantPOS() {
     e.stopPropagation(); 
     handleUpdateOrderStatus(order.id, order.status); 
   }}
-  className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all transform hover:scale-110 active:scale-95 ${
-    order.status === 'เสร็จสิ้น' ? 'bg-green-500 text-white shadow-lg' : 'bg-amber-400 text-white shadow-lg'
+  className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+    order.status === 'เสร็จสิ้น' ? 'bg-green-500 text-white' : 'bg-amber-400 text-white'
   }`}
 >
   {order.status || 'กำลังทำ'}
