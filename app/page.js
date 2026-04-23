@@ -75,25 +75,31 @@ export default function RestaurantPOS() {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ total_price: cartTotal, items: cart, payment_method: paymentMethod }),
+        body: JSON.stringify({ 
+          total_price: cartTotal, 
+          items: cart, 
+          payment_method: paymentMethod 
+        }),
       });
       
-      const result = await res.json(); // ดึงข้อมูลที่ Database ตอบกลับมา
+      // ดึงข้อมูลที่ Database ตอบกลับมา (ซึ่งจะมี id จริงอยู่ข้างใน)
+      const result = await res.json();
 
       if (res.ok) {
         setLastBill({
           items: [...cart], 
           total: cartTotal,
           date: new Date().toLocaleString("th-TH"),
-          orderId: result.id, // *** สำคัญมาก: ต้องใช้ ID จริงจาก Database (result.id) ไม่ใช่เลขสุ่ม
+          // *** แก้ไขบรรทัดนี้: ใช้ result.id แทนการสุ่มเลข ***
+          orderId: result.id,
           paymentMethod: paymentMethod 
         });
         setShowPaymentModal(false);
         setShowBill(true); 
         setCart([]); 
-        fetchAllData(); // โหลดข้อมูลใหม่เพื่อให้หน้าจอมี ID ที่ถูกต้อง
+        fetchAllData(); // เพื่อดึงข้อมูลใหม่ที่มี ID ถูกต้องมาแสดงบนตาราง
       } else { 
-        alert("เกิดข้อผิดพลาดในการบันทึกบิล: " + result.error); 
+        alert("เกิดข้อผิดพลาดในการบันทึกบิล"); 
       }
     } catch (error) { console.error("Payment failed:", error); }
   };
