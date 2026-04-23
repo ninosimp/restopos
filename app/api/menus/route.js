@@ -1,5 +1,4 @@
 export const dynamic = 'force-dynamic'; 
-import { NextResponse } from "next/server";
 
 import { NextResponse } from "next/server";
 import { mysqlPool } from "@/utils/db";
