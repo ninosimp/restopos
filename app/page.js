@@ -203,7 +203,7 @@ export default function RestaurantPOS() {
     <div className="app-container">
       <nav className="navbar">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">🍔</span>
+          <span className="text-3xl">🍚</span>
           <h1 className="text-2xl font-black tracking-tighter">RESTO<span className="text-indigo-200">POS</span></h1>
         </div>
         <div className="flex bg-black/10 p-1 rounded-2xl backdrop-blur-md">
