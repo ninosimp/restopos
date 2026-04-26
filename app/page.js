@@ -1,28 +1,31 @@
-"use client";
+"use client";// บอกว่าไฟล์นี้เป็น Client Component (ใช้ state / event ได้ใน Next.js)
 import React, { useState, useEffect } from "react";
-import Swal from "sweetalert2";
+import Swal from "sweetalert2";// ใช้ popup alert สวย ๆ
 
+//Component หลักของระบบ POS ร้านอาหาร
 export default function RestaurantPOS() {
-  const [menus, setMenus] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [cart, setCart] = useState([]);
-  const [viewMode, setViewMode] = useState("pos");
-  const [search, setSearch] = useState("");
+  const [menus, setMenus] = useState([]);// เก็บเมนูอาหารทั้งหมด
+  const [orders, setOrders] = useState([]);// เก็บรายการออเดอร์ทั้งหมด
+  const [cart, setCart] = useState([]);// ตะกร้าสินค้า (สิ่งที่ลูกค้าสั่ง)
+  const [viewMode, setViewMode] = useState("pos");// เปลี่ยนหน้า (pos = หน้าขาย, manage = หลังบ้าน)
+  const [search, setSearch] = useState("");// ใช้ค้นหา + กรองหมวดหมู่
   const [filterCategory, setFilterCategory] = useState("All");
   const [orderFilter, setOrderFilter] = useState("All");
-  const [form, setForm] = useState({ name: "", price: "", category: "", image_url: "" });
-  const [editId, setEditId] = useState(null);
+  const [form, setForm] = useState({ name: "", price: "", category: "", image_url: "" });// ใช้เพิ่ม / แก้ไขเมนู
+  const [editId, setEditId] = useState(null);// ถ้ามีค่า = กำลังแก้ไขเมนู
   
   // --- States สำหรับการชำระเงินและบิล ---
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("เงินสด");
-  const [orderType, setOrderType] = useState("ทานที่ร้าน"); // เพิ่ม State ประเภทออเดอร์
-  const [tableNo, setTableNo] = useState(""); // เพิ่ม State เบอร์โต๊ะ
-  const [showBill, setShowBill] = useState(false);
-  const [lastBill, setLastBill] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);// เปิด/ปิด popup จ่ายเงิน
+  const [paymentMethod, setPaymentMethod] = useState("เงินสด");// วิธีจ่ายเงิน
+  const [orderType, setOrderType] = useState("ทานที่ร้าน"); //  ประเภทออเดอร์
+  const [tableNo, setTableNo] = useState(""); // เลขโต๊ะ
+  const [showBill, setShowBill] = useState(false);// เปิดใบเสร็จ
+  const [lastBill, setLastBill] = useState(null);// เก็บข้อมูลบิลล่าสุด
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+
+  //ดึงข้อมูลจาก API
   const fetchAllData = async () => {
     try {
       const resMenu = await fetch(`/api/menus?t=${Date.now()}`, { cache: "no-store" });
@@ -33,18 +36,26 @@ export default function RestaurantPOS() {
       setOrders(Array.isArray(dataOrder) ? dataOrder : []);
     } catch (error) { console.error("Fetch error:", error); }
   };
+//โหลด เมนู + ออเดอร์ จาก backend
 
+//โหลดครั้งแรกตอนเปิดหน้า
   useEffect(() => { fetchAllData(); }, []);
 
+
+  //เพิ่ม / แก้ไขเมนู
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.price < 0) return Swal.fire("เดี๋ยวก่อน!", "ราคาอาหารห้ามติดลบนะครับ", "warning");
 
     setIsLoading(true);
+    //เช็คราคาห้ามติดลบ
+    // ถ้ามี editId = แก้ไข
+    // ไม่มี = เพิ่มใหม่
     const method = editId ? "PUT" : "POST";
     const url = editId ? `/api/menus/${editId}` : "/api/menus";
     
     try {
+      //ส่งข้อมูลไป backend
       await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -59,11 +70,13 @@ export default function RestaurantPOS() {
     } finally { setIsLoading(false); }
   };
 
+
   const handleEdit = (menu) => {
     setForm({ name: menu.name, price: menu.price, category: menu.category, image_url: menu.image_url });
     setEditId(menu.id);
   };
 
+  //ลบเมนู
   const handleDelete = async (id) => {
     Swal.fire({
       title: 'ยืนยันการลบ?', text: "ลบแล้วจะไม่สามารถกู้ข้อมูลคืนได้นะครับ", icon: 'warning',
@@ -82,21 +95,27 @@ export default function RestaurantPOS() {
     });
   };
 
+
+  //ระบบตะกร้า
   const addToCart = (menu) => {
     const existing = cart.find((item) => item.id === menu.id);
     if (existing) setCart(cart.map((item) => (item.id === menu.id ? { ...item, qty: item.qty + 1 } : item)));
     else setCart([...cart, { ...menu, qty: 1 }]);
-  };
+  };//ถ้ามีอยู่แล้ว → เพิ่มจำนวน,ถ้ายังไม่มี → เพิ่มรายการใหม่
 
   const removeFromCart = (id) => setCart(cart.filter((item) => item.id !== id));
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);//คำนวณราคารวม
 
+
+  //เปิด popup จ่ายเงิน
   const handleCheckout = () => {
     if (cart.length === 0) return Swal.fire("ตะกร้าว่างเปล่า", "กรุณาเลือกรายการอาหารก่อนชำระเงินครับ", "info");
     setShowPaymentModal(true);
   };
 
   const confirmPayment = async () => {
+
+    //ถ้ากินที่ร้านต้องใส่เลขโต๊ะ
     if (orderType === "ทานที่ร้าน" && !tableNo) {
       return Swal.fire("ลืมอะไรหรือเปล่า?", "กรุณาระบุหมายเลขโต๊ะด้วยครับ", "warning");
     }
@@ -108,6 +127,7 @@ export default function RestaurantPOS() {
     const cartWithDetails = cart.map(item => ({...item, orderType, tableNo}));
 
     try {
+      //ส่งออเดอร์ไป backend
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -120,6 +140,7 @@ export default function RestaurantPOS() {
       const result = await res.json();
 
       if (res.ok) {
+        //เก็บบิลล่าสุดไว้แสดง
         setLastBill({
           items: [...cart], total: cartTotal,
           date: new Date().toLocaleString("th-TH"),
@@ -139,7 +160,7 @@ export default function RestaurantPOS() {
 
   const handleUpdateOrderStatus = async (id, currentStatus) => {
     if (!id || id === 'undefined') return;
-    const nextStatus = (currentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';
+    const nextStatus = (currentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';//กดปุ่มเพื่อ toggle สถานะ
     try {
       const res = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
@@ -154,6 +175,8 @@ export default function RestaurantPOS() {
   };
 
   const categories = ["All", ...new Set((Array.isArray(menus) ? menus : []).map((m) => m.category))];
+
+  //หมวดหมู่ คำค้นหา
   const filteredMenus = (Array.isArray(menus) ? menus : []).filter((m) =>
     (filterCategory === "All" || m.category === filterCategory) &&
     (m.name.toLowerCase().includes(search.toLowerCase()))
@@ -176,6 +199,7 @@ export default function RestaurantPOS() {
         </div>
       </nav>
 
+      
       <main className="p-4 md:p-6">
         {viewMode === "pos" ? (
           <div className="flex flex-col lg:flex-row gap-8 h-auto lg:h-[calc(100vh-140px)]">
