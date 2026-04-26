@@ -231,8 +231,8 @@ export default function RestaurantPOS() {
     <div className="app-container">
       <nav className="navbar">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">🍔</span>
-          <h1 className="text-2xl font-black tracking-tighter">RESTO<span className="text-indigo-200">POS</span></h1>
+          <span className="text-3xl">🍽️</span>
+          <h1 className="text-2xl font-black tracking-tighter">อีสานริมบึง<span className="text-indigo-200">POS</span></h1>
         </div>
         <div className="flex bg-black/10 p-1 rounded-2xl backdrop-blur-md">
           <button onClick={() => setViewMode("pos")} className={viewMode === "pos" ? "btn-nav-active" : "btn-nav"}>หน้าร้าน</button>
@@ -501,7 +501,7 @@ export default function RestaurantPOS() {
           <div className="bg-white w-full max-w-sm rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 shadow-2xl print:shadow-none print:max-w-[80mm] print:m-0 print:p-4">
             <div className="text-center">
               <span className="text-5xl md:text-6xl block mb-4 md:mb-6 print:mb-2 print:text-4xl">🍔</span>
-              <h2 className="text-2xl md:text-3xl font-black mb-2 print:text-xl">RESTOPOS</h2>
+              <h2 className="text-2xl md:text-3xl font-black mb-2 print:text-xl">อีสานริมบึง</h2>
               <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] md:tracking-[0.3em] mb-2 print:text-black">Bill #{lastBill.orderId} <br className="hidden print:block"/> {lastBill.date}</p>
               
               <div className="inline-block bg-slate-100 text-slate-700 font-bold px-3 py-1 rounded-full text-[10px] mb-6 print:border print:border-black print:bg-white">
