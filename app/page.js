@@ -500,7 +500,7 @@ export default function RestaurantPOS() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 print:bg-white print:p-0">
           <div className="bg-white w-full max-w-sm rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 shadow-2xl print:shadow-none print:max-w-[80mm] print:m-0 print:p-4">
             <div className="text-center">
-              <span className="text-5xl md:text-6xl block mb-4 md:mb-6 print:mb-2 print:text-4xl">🍔</span>
+              <span className="text-5xl md:text-6xl block mb-4 md:mb-6 print:mb-2 print:text-4xl">🍽️</span>
               <h2 className="text-2xl md:text-3xl font-black mb-2 print:text-xl">เจ้านายหมูทอด</h2>
               <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] md:tracking-[0.3em] mb-2 print:text-black">Bill #{lastBill.orderId} <br className="hidden print:block"/> {lastBill.date}</p>
               
