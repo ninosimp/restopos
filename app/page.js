@@ -228,39 +228,7 @@ export default function RestaurantPOS() {
     return (o.status || 'กำลังทำ') === orderFilter;
   });
 
-  // --- ระบบเช็ครหัสผ่านผู้จัดการ (Mock Auth) ---
-  const handleManagerAccess = () => {
-    Swal.fire({
-      title: '🔐 เข้าสู่ระบบผู้จัดการ',
-      text: 'กรุณาใส่รหัสผ่านเพื่อจัดการหลังบ้าน',
-      input: 'password',
-      inputPlaceholder: 'ใส่รหัสผ่าน...',
-      inputAttributes: {
-        autocapitalize: 'off',
-        autocorrect: 'off'
-      },
-      showCancelButton: true,
-      confirmButtonText: 'เข้าสู่ระบบ',
-      cancelButtonText: 'ยกเลิก',
-      confirmButtonColor: '#4f46e5', // สี indigo-600
-    }).then((result) => {
-      if (result.isConfirmed) {
-        if (result.value === '1234') { // รหัสผ่านคือ 1234
-          setViewMode("manage");
-          Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: 'ยินดีต้อนรับ ผู้จัดการ!',
-            showConfirmButton: false,
-            timer: 1500
-          });
-        } else {
-          Swal.fire('รหัสผ่านไม่ถูกต้อง!', 'คุณไม่มีสิทธิ์เข้าถึงส่วนนี้', 'error');
-        }
-      }
-    });
-  };
+  
 
   return (
     <div className="app-container">
@@ -271,7 +239,7 @@ export default function RestaurantPOS() {
         </div>
         <div className="flex bg-black/10 p-1 rounded-2xl backdrop-blur-md">
           <button onClick={() => setViewMode("pos")} className={viewMode === "pos" ? "btn-nav-active" : "btn-nav"}>หน้าร้าน</button>
-          <button onClick={handleManagerAccess} className={viewMode === "manage" ? "btn-nav-active" : "btn-nav"}>หลังบ้าน</button>
+          <button onClick={() => setViewMode("manage")} className={viewMode === "manage" ? "btn-nav-active" : "btn-nav"}>หลังบ้าน</button>
         </div>
       </nav>
 
