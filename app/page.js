@@ -1,31 +1,32 @@
-"use client";// บอกว่าไฟล์นี้เป็น Client Component (ใช้ state / event ได้ใน Next.js)
+"use client";
 import React, { useState, useEffect } from "react";
-import Swal from "sweetalert2";// ใช้ popup alert สวย ๆ
+import Swal from "sweetalert2";
 
-//Component หลักของระบบ POS ร้านอาหาร
 export default function RestaurantPOS() {
-  const [menus, setMenus] = useState([]);// เก็บเมนูอาหารทั้งหมด
-  const [orders, setOrders] = useState([]);// เก็บรายการออเดอร์ทั้งหมด
-  const [cart, setCart] = useState([]);// ตะกร้าสินค้า (สิ่งที่ลูกค้าสั่ง)
-  const [viewMode, setViewMode] = useState("pos");// เปลี่ยนหน้า (pos = หน้าขาย, manage = หลังบ้าน)
-  const [search, setSearch] = useState("");// ใช้ค้นหา + กรองหมวดหมู่
+  const [menus, setMenus] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [cart, setCart] = useState([]);
+  const [viewMode, setViewMode] = useState("pos");
+  const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
   const [orderFilter, setOrderFilter] = useState("All");
-  const [form, setForm] = useState({ name: "", price: "", category: "", image_url: "" });// ใช้เพิ่ม / แก้ไขเมนู
-  const [editId, setEditId] = useState(null);// ถ้ามีค่า = กำลังแก้ไขเมนู
+  const [form, setForm] = useState({ name: "", price: "", category: "", image_url: "" });
+  const [editId, setEditId] = useState(null);
   
-  // --- States สำหรับการชำระเงินและบิล ---
-  const [showPaymentModal, setShowPaymentModal] = useState(false);// เปิด/ปิด popup จ่ายเงิน
-  const [paymentMethod, setPaymentMethod] = useState("เงินสด");// วิธีจ่ายเงิน
-  const [orderType, setOrderType] = useState("ทานที่ร้าน"); //  ประเภทออเดอร์
-  const [tableNo, setTableNo] = useState(""); // เลขโต๊ะ
-  const [showBill, setShowBill] = useState(false);// เปิดใบเสร็จ
-  const [lastBill, setLastBill] = useState(null);// เก็บข้อมูลบิลล่าสุด
+  // --- States สำหรับชำระเงินและบิล ---
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("เงินสด");
+  const [orderType, setOrderType] = useState("ทานที่ร้าน"); 
+  const [tableNo, setTableNo] = useState(""); 
+  const [showBill, setShowBill] = useState(false);
+  const [lastBill, setLastBill] = useState(null);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // --- States สำหรับหน้าต่างเลือกจำนวนอาหาร ---
+  const [selectedMenu, setSelectedMenu] = useState(null);
+  const [qtyToAdd, setQtyToAdd] = useState(1);
 
-  //ดึงข้อมูลจาก API
   const fetchAllData = async () => {
     try {
       const resMenu = await fetch(`/api/menus?t=${Date.now()}`, { cache: "no-store" });
@@ -36,26 +37,19 @@ export default function RestaurantPOS() {
       setOrders(Array.isArray(dataOrder) ? dataOrder : []);
     } catch (error) { console.error("Fetch error:", error); }
   };
-//โหลด เมนู + ออเดอร์ จาก backend
 
-//โหลดครั้งแรกตอนเปิดหน้า
   useEffect(() => { fetchAllData(); }, []);
 
-
-  //เพิ่ม / แก้ไขเมนู
+  // --- CRUD เมนู ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.price < 0) return Swal.fire("เดี๋ยวก่อน!", "ราคาอาหารห้ามติดลบนะครับ", "warning");
 
     setIsLoading(true);
-    //เช็คราคาห้ามติดลบ
-    // ถ้ามี editId = แก้ไข
-    // ไม่มี = เพิ่มใหม่
     const method = editId ? "PUT" : "POST";
     const url = editId ? `/api/menus/${editId}` : "/api/menus";
     
     try {
-      //ส่งข้อมูลไป backend
       await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -70,13 +64,11 @@ export default function RestaurantPOS() {
     } finally { setIsLoading(false); }
   };
 
-
   const handleEdit = (menu) => {
     setForm({ name: menu.name, price: menu.price, category: menu.category, image_url: menu.image_url });
     setEditId(menu.id);
   };
 
-  //ลบเมนู
   const handleDelete = async (id) => {
     Swal.fire({
       title: 'ยืนยันการลบ?', text: "ลบแล้วจะไม่สามารถกู้ข้อมูลคืนได้นะครับ", icon: 'warning',
@@ -95,27 +87,37 @@ export default function RestaurantPOS() {
     });
   };
 
+  // --- ระบบตะกร้าแบบใหม่ (เด้งถามจำนวน) ---
+  const handleMenuClick = (menu) => {
+    setSelectedMenu(menu); // เปิดหน้าต่าง Modal
+    setQtyToAdd(1); // รีเซ็ตจำนวนให้เริ่มที่ 1 ทุกครั้ง
+  };
 
-  //ระบบตะกร้า
-  const addToCart = (menu) => {
-    const existing = cart.find((item) => item.id === menu.id);
-    if (existing) setCart(cart.map((item) => (item.id === menu.id ? { ...item, qty: item.qty + 1 } : item)));
-    else setCart([...cart, { ...menu, qty: 1 }]);
-  };//ถ้ามีอยู่แล้ว → เพิ่มจำนวน,ถ้ายังไม่มี → เพิ่มรายการใหม่
+  const confirmAddToCart = () => {
+    if (!selectedMenu) return;
+    
+    const existing = cart.find((item) => item.id === selectedMenu.id);
+    if (existing) {
+      setCart(cart.map((item) => (item.id === selectedMenu.id ? { ...item, qty: item.qty + qtyToAdd } : item)));
+    } else {
+      setCart([...cart, { ...selectedMenu, qty: qtyToAdd }]);
+    }
+    
+    // โชว์แจ้งเตือนเล็กๆ ว่าเพิ่มแล้ว
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `เพิ่ม ${selectedMenu.name} x${qtyToAdd} ลงตะกร้า`, showConfirmButton: false, timer: 1000 });
+    
+    setSelectedMenu(null); // ปิดหน้าต่าง Modal
+  };
 
   const removeFromCart = (id) => setCart(cart.filter((item) => item.id !== id));
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);//คำนวณราคารวม
+  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-
-  //เปิด popup จ่ายเงิน
   const handleCheckout = () => {
     if (cart.length === 0) return Swal.fire("ตะกร้าว่างเปล่า", "กรุณาเลือกรายการอาหารก่อนชำระเงินครับ", "info");
     setShowPaymentModal(true);
   };
 
   const confirmPayment = async () => {
-
-    //ถ้ากินที่ร้านต้องใส่เลขโต๊ะ
     if (orderType === "ทานที่ร้าน" && !tableNo) {
       return Swal.fire("ลืมอะไรหรือเปล่า?", "กรุณาระบุหมายเลขโต๊ะด้วยครับ", "warning");
     }
@@ -123,34 +125,31 @@ export default function RestaurantPOS() {
     setIsLoading(true);
     Swal.fire({ title: 'กำลังบันทึกบิล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
 
-    // แนบข้อมูลประเภทออเดอร์และโต๊ะไปกับรายการอาหารเพื่อโชว์ในบิล
     const cartWithDetails = cart.map(item => ({...item, orderType, tableNo}));
 
     try {
-      //ส่งออเดอร์ไป backend
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           total_price: cartTotal, 
-          items: cartWithDetails, // ส่งข้อมูลที่มีโต๊ะไปด้วย
+          items: cartWithDetails,
           payment_method: paymentMethod 
         }),
       });
       const result = await res.json();
 
       if (res.ok) {
-        //เก็บบิลล่าสุดไว้แสดง
         setLastBill({
           items: [...cart], total: cartTotal,
           date: new Date().toLocaleString("th-TH"),
           orderId: result.id, paymentMethod: paymentMethod,
-          orderType: orderType, tableNo: tableNo // เก็บไว้โชว์ในใบเสร็จ
+          orderType: orderType, tableNo: tableNo 
         });
         setShowPaymentModal(false);
         setShowBill(true); 
         setCart([]); 
-        setTableNo(""); // รีเซ็ตโต๊ะ
+        setTableNo(""); 
         fetchAllData(); 
         Swal.close();
       } else { Swal.fire("ข้อผิดพลาด", "เกิดข้อผิดพลาดในการบันทึกบิล", "error"); }
@@ -160,7 +159,7 @@ export default function RestaurantPOS() {
 
   const handleUpdateOrderStatus = async (id, currentStatus) => {
     if (!id || id === 'undefined') return;
-    const nextStatus = (currentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';//กดปุ่มเพื่อ toggle สถานะ
+    const nextStatus = (currentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';
     try {
       const res = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
@@ -175,8 +174,6 @@ export default function RestaurantPOS() {
   };
 
   const categories = ["All", ...new Set((Array.isArray(menus) ? menus : []).map((m) => m.category))];
-
-  //หมวดหมู่ คำค้นหา
   const filteredMenus = (Array.isArray(menus) ? menus : []).filter((m) =>
     (filterCategory === "All" || m.category === filterCategory) &&
     (m.name.toLowerCase().includes(search.toLowerCase()))
@@ -199,7 +196,6 @@ export default function RestaurantPOS() {
         </div>
       </nav>
 
-      
       <main className="p-4 md:p-6">
         {viewMode === "pos" ? (
           <div className="flex flex-col lg:flex-row gap-8 h-auto lg:h-[calc(100vh-140px)]">
@@ -212,7 +208,7 @@ export default function RestaurantPOS() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 overflow-y-auto pr-2 pb-4">
                 {filteredMenus.map((menu) => (
-                  <div key={menu.id} onClick={() => addToCart(menu)} className="group menu-item cursor-pointer hover:shadow-xl transition-all p-3 border border-slate-100 rounded-[2rem]">
+                  <div key={menu.id} onClick={() => handleMenuClick(menu)} className="group menu-item cursor-pointer hover:shadow-xl transition-all p-3 border border-slate-100 rounded-[2rem]">
                     <div className="overflow-hidden rounded-[1.5rem] mb-3 shadow-inner bg-slate-100 relative">
                       <img src={menu.image_url || "https://placehold.co/400x300?text=Food"} alt={menu.name} className="w-full h-24 md:h-36 object-cover group-hover:scale-110 transition-transform duration-500" />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300"></div>
@@ -266,6 +262,7 @@ export default function RestaurantPOS() {
           </div>
         ) : (
           <div className="max-w-7xl mx-auto flex flex-col gap-8 animate-in fade-in duration-500">
+            {/* โค้ดส่วนหลังบ้านเหมือนเดิมทุกประการ... */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="panel-card bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-none shadow-indigo-200 shadow-2xl">
                 <h3 className="text-indigo-200 font-bold uppercase tracking-widest text-xs mb-2">Total Revenue</h3>
@@ -307,7 +304,6 @@ export default function RestaurantPOS() {
                           {order.status || 'กำลังทำ'}
                         </button>
                         <span className="text-xs font-bold text-slate-400">{new Date(order.created_at).toLocaleString('th-TH')}</span>
-                        {/* โชว์ประเภทออเดอร์ในประวัติ */}
                         {order.items && order.items[0]?.orderType && (
                            <span className="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-1 rounded-md ml-2">
                              {order.items[0].orderType} {order.items[0].tableNo ? `(โต๊ะ ${order.items[0].tableNo})` : ''}
@@ -387,14 +383,35 @@ export default function RestaurantPOS() {
         )}
       </main>
 
-      {/* Payment Selection Modal (อัปเกรดให้มีเลือกโต๊ะ) */}
+      {/* --- Modal ถามจำนวนอาหารก่อนเข้าตะกร้า --- */}
+      {selectedMenu && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in">
+          <div className="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center shadow-2xl">
+            <img src={selectedMenu.image_url || "https://placehold.co/400x300"} className="w-32 h-32 object-cover rounded-3xl mx-auto mb-6 shadow-md border-4 border-slate-50" />
+            <h3 className="text-2xl font-black text-slate-800 mb-1">{selectedMenu.name}</h3>
+            <p className="text-indigo-600 font-black text-xl mb-8">฿{selectedMenu.price}</p>
+            
+            <div className="flex items-center justify-center gap-6 mb-10 bg-slate-50 p-4 rounded-3xl w-fit mx-auto border border-slate-100">
+              <button onClick={() => setQtyToAdd(Math.max(1, qtyToAdd - 1))} className="w-12 h-12 rounded-2xl bg-white shadow-sm text-slate-600 font-black text-2xl hover:bg-slate-200 transition-all">-</button>
+              <span className="text-4xl font-black text-slate-800 w-12">{qtyToAdd}</span>
+              <button onClick={() => setQtyToAdd(qtyToAdd + 1)} className="w-12 h-12 rounded-2xl bg-indigo-600 shadow-md text-white font-black text-2xl hover:bg-indigo-700 transition-all">+</button>
+            </div>
+            
+            <div className="flex gap-4">
+              <button onClick={confirmAddToCart} className="btn-primary flex-1 py-4 text-lg">เพิ่มลงตะกร้า</button>
+              <button onClick={() => setSelectedMenu(null)} className="btn-outline flex-1 py-4 bg-slate-50 text-slate-400 border-none hover:bg-slate-100">ยกเลิก</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Selection Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto py-10">
           <div className="bg-white w-full max-w-md rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 shadow-2xl my-auto">
             <h2 className="text-2xl md:text-3xl font-black text-slate-800 mb-2">CHECKOUT</h2>
             <p className="text-slate-400 text-sm font-bold mb-6">กรุณาระบุข้อมูลออเดอร์และการชำระเงิน</p>
 
-            {/* ส่วนเลือกประเภทออเดอร์ */}
             <div className="bg-slate-50 p-4 rounded-2xl mb-6 border border-slate-100">
               <label className="input-label text-xs">Order Type (ประเภทรายการ)</label>
               <div className="flex gap-2 mt-2 mb-4">
@@ -402,7 +419,6 @@ export default function RestaurantPOS() {
                 <button onClick={() => {setOrderType("กลับบ้าน"); setTableNo("");}} className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${orderType === "กลับบ้าน" ? "bg-indigo-600 text-white shadow-md" : "bg-white text-slate-500 border border-slate-200"}`}>🛍️ กลับบ้าน</button>
               </div>
               
-              {/* ช่องกรอกเบอร์โต๊ะ (โชว์เฉพาะทานที่ร้าน) */}
               {orderType === "ทานที่ร้าน" && (
                 <div className="animate-in fade-in slide-in-from-top-2">
                   <input type="text" placeholder="ระบุหมายเลขโต๊ะ (เช่น โต๊ะ 5)" value={tableNo} onChange={(e) => setTableNo(e.target.value)} className="input-field w-full text-center font-bold text-indigo-600" />
@@ -440,11 +456,10 @@ export default function RestaurantPOS() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 print:bg-white print:p-0">
           <div className="bg-white w-full max-w-sm rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 shadow-2xl print:shadow-none print:max-w-[80mm] print:m-0 print:p-4">
             <div className="text-center">
-              <span className="text-5xl md:text-6xl block mb-4 md:mb-6 print:text-4xl">🍔</span>
+              <span className="text-5xl md:text-6xl block mb-4 md:mb-6 print:mb-2 print:text-4xl">🍔</span>
               <h2 className="text-2xl md:text-3xl font-black mb-2 print:text-xl">RESTOPOS</h2>
               <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] md:tracking-[0.3em] mb-2 print:text-black">Bill #{lastBill.orderId} <br className="hidden print:block"/> {lastBill.date}</p>
               
-              {/* โชว์ประเภทออเดอร์ในใบเสร็จ */}
               <div className="inline-block bg-slate-100 text-slate-700 font-bold px-3 py-1 rounded-full text-[10px] mb-6 print:border print:border-black print:bg-white">
                 {lastBill.orderType} {lastBill.tableNo && `(โต๊ะ ${lastBill.tableNo})`}
               </div>
@@ -468,7 +483,7 @@ export default function RestaurantPOS() {
             </div>
             <div className="flex flex-col sm:flex-row gap-4 print:hidden">
               <button onClick={() => window.print()} className="btn-primary flex-1 py-3">PRINT</button>
-              <button onClick={() => setShowBill(false)} className="btn-outline flex-1 py-3 border-none bg-slate-50">CLOSE</button>
+              <button onClick={() => setShowBill(false)} className="btn-outline flex-1 py-3 border-none bg-slate-50 hover:bg-slate-100">CLOSE</button>
             </div>
           </div>
         </div>
