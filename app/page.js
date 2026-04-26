@@ -3,49 +3,61 @@ import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 
 export default function RestaurantPOS() {
-  const [menus, setMenus] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [cart, setCart] = useState([]);
-  const [viewMode, setViewMode] = useState("pos");
-  const [search, setSearch] = useState("");
-  const [filterCategory, setFilterCategory] = useState("All");
-  const [orderFilter, setOrderFilter] = useState("All");
+  // -------------------- STATE (ตัวแปรเก็บข้อมูล) --------------------
+ const [menus, setMenus] = useState([]); // เก็บรายการเมนูทั้งหมด
+  const [orders, setOrders] = useState([]); // เก็บรายการออเดอร์ทั้งหมด
+  const [cart, setCart] = useState([]); // ตะกร้าสินค้า
+  const [viewMode, setViewMode] = useState("pos"); // สลับหน้า pos / หลังบ้าน
+  const [search, setSearch] = useState(""); // ค้นหาเมนู
+  const [filterCategory, setFilterCategory] = useState("All"); // filter หมวดหมู่
+  const [orderFilter, setOrderFilter] = useState("All"); // filter สถานะออเดอร์
+  // ฟอร์มเพิ่ม/แก้ไขเมนู
   const [form, setForm] = useState({ name: "", price: "", category: "", image_url: "" });
-  const [editId, setEditId] = useState(null);
+  const [editId, setEditId] = useState(null); // id เมนูที่กำลังแก้ไข
   
-  // --- States สำหรับชำระเงินและบิล ---
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("เงินสด");
-  const [orderType, setOrderType] = useState("ทานที่ร้าน"); 
-  const [tableNo, setTableNo] = useState(""); 
-  const [showBill, setShowBill] = useState(false);
-  const [lastBill, setLastBill] = useState(null);
-  const [expandedOrderId, setExpandedOrderId] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  // -------------------- PAYMENT / BILL --------------------
+  const [showPaymentModal, setShowPaymentModal] = useState(false); // เปิด modal ชำระเงิน
+  const [paymentMethod, setPaymentMethod] = useState("เงินสด"); // วิธีจ่ายเงิน
+  const [orderType, setOrderType] = useState("ทานที่ร้าน"); // ประเภทออเดอร์
+  const [tableNo, setTableNo] = useState(""); // เลขโต๊ะ
+  const [showBill, setShowBill] = useState(false); // แสดงบิล
+  const [lastBill, setLastBill] = useState(null); // เก็บบิลล่าสุด
+  const [expandedOrderId, setExpandedOrderId] = useState(null); // เปิด/ปิดดูรายละเอียดออเดอร์
+  const [isLoading, setIsLoading] = useState(false); // loading state
 
-  // --- States สำหรับหน้าต่างเลือกจำนวนอาหาร ---
-  const [selectedMenu, setSelectedMenu] = useState(null);
-  const [qtyToAdd, setQtyToAdd] = useState(1);
+   // -------------------- MODAL เลือกจำนวน --------------------
+  const [selectedMenu, setSelectedMenu] = useState(null); // เมนูที่เลือก
+  const [qtyToAdd, setQtyToAdd] = useState(1); // จำนวนที่จะเพิ่ม
 
+
+  //FETCH DATA
   const fetchAllData = async () => {
     try {
+       // ดึงเมนู
       const resMenu = await fetch(`/api/menus?t=${Date.now()}`, { cache: "no-store" });
       const dataMenu = await resMenu.json();
       setMenus(Array.isArray(dataMenu) ? dataMenu : []);
+
+      // ดึงออเดอร์
       const resOrder = await fetch(`/api/orders?t=${Date.now()}`, { cache: "no-store" });
       const dataOrder = await resOrder.json();
       setOrders(Array.isArray(dataOrder) ? dataOrder : []);
     } catch (error) { console.error("Fetch error:", error); }
   };
 
+  // โหลดข้อมูลครั้งแรก
   useEffect(() => { fetchAllData(); }, []);
 
   // --- CRUD เมนู ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // กันราคาเป็นลบ
     if (form.price < 0) return Swal.fire("เดี๋ยวก่อน!", "ราคาอาหารห้ามติดลบนะครับ", "warning");
 
     setIsLoading(true);
+
+    // ถ้ามี editId = แก้ไข, ไม่มี = เพิ่ม
     const method = editId ? "PUT" : "POST";
     const url = editId ? `/api/menus/${editId}` : "/api/menus";
     
@@ -55,7 +67,16 @@ export default function RestaurantPOS() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      Swal.fire({ icon: 'success', title: editId ? 'อัปเดตเมนูสำเร็จ!' : 'เพิ่มเมนูสำเร็จ!', showConfirmButton: false, timer: 1500 });
+
+      // แจ้งเตือนสำเร็จ
+      Swal.fire({ 
+        icon: 'success', 
+        title: editId ? 'อัปเดตเมนูสำเร็จ!' : 'เพิ่มเมนูสำเร็จ!', 
+        showConfirmButton: false, 
+        timer: 1500 
+      });
+
+      // รีเซ็ตฟอร์ม
       setForm({ name: "", price: "", category: "", image_url: "" });
       setEditId(null);
       fetchAllData();
@@ -64,16 +85,27 @@ export default function RestaurantPOS() {
     } finally { setIsLoading(false); }
   };
 
+  // โหลดข้อมูลมาแก้ไข
   const handleEdit = (menu) => {
-    setForm({ name: menu.name, price: menu.price, category: menu.category, image_url: menu.image_url });
+    setForm({ 
+      name: menu.name, 
+      price: menu.price, 
+      category: menu.category, 
+      image_url: menu.image_url });
     setEditId(menu.id);
   };
 
+  // ลบเมนู
   const handleDelete = async (id) => {
     Swal.fire({
-      title: 'ยืนยันการลบ?', text: "ลบแล้วจะไม่สามารถกู้ข้อมูลคืนได้นะครับ", icon: 'warning',
-      showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#94a3b8',
-      confirmButtonText: 'ใช่, ลบเลย!', cancelButtonText: 'ยกเลิก'
+      title: 'ยืนยันการลบ?', 
+      text: "ลบแล้วจะไม่สามารถกู้ข้อมูลคืนได้นะครับ", 
+      icon: 'warning',
+      showCancelButton: true, 
+      confirmButtonColor: '#ef4444', 
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'ใช่, ลบเลย!', 
+      cancelButtonText: 'ยกเลิก'
     }).then(async (result) => {
       if (result.isConfirmed) {
         setIsLoading(true);
@@ -87,19 +119,22 @@ export default function RestaurantPOS() {
     });
   };
 
-  // --- ระบบตะกร้าแบบใหม่ (เด้งถามจำนวน) ---
+  // CART
   const handleMenuClick = (menu) => {
     setSelectedMenu(menu); // เปิดหน้าต่าง Modal
     setQtyToAdd(1); // รีเซ็ตจำนวนให้เริ่มที่ 1 ทุกครั้ง
   };
 
+  // เพิ่มลงตะกร้า
   const confirmAddToCart = () => {
     if (!selectedMenu) return;
     
     const existing = cart.find((item) => item.id === selectedMenu.id);
+    // ถ้ามีอยู่แล้ว เพิ่มจำนวน
     if (existing) {
       setCart(cart.map((item) => (item.id === selectedMenu.id ? { ...item, qty: item.qty + qtyToAdd } : item)));
     } else {
+      // ถ้ายังไม่มี เพิ่มใหม่
       setCart([...cart, { ...selectedMenu, qty: qtyToAdd }]);
     }
     
@@ -109,14 +144,21 @@ export default function RestaurantPOS() {
     setSelectedMenu(null); // ปิดหน้าต่าง Modal
   };
 
-  const removeFromCart = (id) => setCart(cart.filter((item) => item.id !== id));
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  // ลบออกจากตะกร้า
+  const removeFromCart = (id) => 
+    setCart(cart.filter((item) => item.id !== id));
 
+  // คำนวณราคารวม
+  const cartTotal = cart.reduce((sum, item) => 
+    sum + item.price * item.qty, 0);
+
+  //Checkout
   const handleCheckout = () => {
     if (cart.length === 0) return Swal.fire("ตะกร้าว่างเปล่า", "กรุณาเลือกรายการอาหารก่อนชำระเงินครับ", "info");
     setShowPaymentModal(true);
   };
 
+  // ยืนยันชำระเงิน
   const confirmPayment = async () => {
     if (orderType === "ทานที่ร้าน" && !tableNo) {
       return Swal.fire("ลืมอะไรหรือเปล่า?", "กรุณาระบุหมายเลขโต๊ะด้วยครับ", "warning");
@@ -139,6 +181,7 @@ export default function RestaurantPOS() {
       });
       const result = await res.json();
 
+      // สร้างบิล
       if (res.ok) {
         setLastBill({
           items: [...cart], total: cartTotal,
@@ -173,6 +216,7 @@ export default function RestaurantPOS() {
     } catch (error) { console.error("Update failed:", error); }
   };
 
+  // -------------------- FILTER --------------------
   const categories = ["All", ...new Set((Array.isArray(menus) ? menus : []).map((m) => m.category))];
   const filteredMenus = (Array.isArray(menus) ? menus : []).filter((m) =>
     (filterCategory === "All" || m.category === filterCategory) &&
