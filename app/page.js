@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Swal from "sweetalert2"; // นำเข้าไลบรารี Popup แจ้งเตือนสวยๆ
+import Swal from "sweetalert2";
 
 export default function RestaurantPOS() {
   const [menus, setMenus] = useState([]);
@@ -12,13 +12,15 @@ export default function RestaurantPOS() {
   const [orderFilter, setOrderFilter] = useState("All");
   const [form, setForm] = useState({ name: "", price: "", category: "", image_url: "" });
   const [editId, setEditId] = useState(null);
+  
+  // --- States สำหรับการชำระเงินและบิล ---
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("เงินสด");
+  const [orderType, setOrderType] = useState("ทานที่ร้าน"); // เพิ่ม State ประเภทออเดอร์
+  const [tableNo, setTableNo] = useState(""); // เพิ่ม State เบอร์โต๊ะ
   const [showBill, setShowBill] = useState(false);
   const [lastBill, setLastBill] = useState(null);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
-
-  // --- เพิ่ม State สำหรับดักสถานะ "กำลังโหลด" ---
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchAllData = async () => {
@@ -34,16 +36,11 @@ export default function RestaurantPOS() {
 
   useEffect(() => { fetchAllData(); }, []);
 
-  // --- ระบบบันทึก/แก้ไขเมนู (เพิ่ม Validation & Loading) ---
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // ดักจับไม่ให้ใส่ราคาติดลบ
-    if (form.price < 0) {
-      return Swal.fire("เดี๋ยวก่อน!", "ราคาอาหารห้ามติดลบนะครับ", "warning");
-    }
+    if (form.price < 0) return Swal.fire("เดี๋ยวก่อน!", "ราคาอาหารห้ามติดลบนะครับ", "warning");
 
-    setIsLoading(true); // เริ่มหมุน Loading
+    setIsLoading(true);
     const method = editId ? "PUT" : "POST";
     const url = editId ? `/api/menus/${editId}` : "/api/menus";
     
@@ -53,23 +50,13 @@ export default function RestaurantPOS() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-
-      // แจ้งเตือนเมื่อสำเร็จ
-      Swal.fire({
-        icon: 'success',
-        title: editId ? 'อัปเดตเมนูสำเร็จ!' : 'เพิ่มเมนูสำเร็จ!',
-        showConfirmButton: false,
-        timer: 1500
-      });
-
+      Swal.fire({ icon: 'success', title: editId ? 'อัปเดตเมนูสำเร็จ!' : 'เพิ่มเมนูสำเร็จ!', showConfirmButton: false, timer: 1500 });
       setForm({ name: "", price: "", category: "", image_url: "" });
       setEditId(null);
       fetchAllData();
     } catch (error) {
       Swal.fire("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้", "error");
-    } finally {
-      setIsLoading(false); // ปิด Loading
-    }
+    } finally { setIsLoading(false); }
   };
 
   const handleEdit = (menu) => {
@@ -77,17 +64,11 @@ export default function RestaurantPOS() {
     setEditId(menu.id);
   };
 
-  // --- ระบบลบเมนู (เปลี่ยน Alert เป็น SweetAlert Confirm) ---
   const handleDelete = async (id) => {
     Swal.fire({
-      title: 'ยืนยันการลบ?',
-      text: "ลบแล้วจะไม่สามารถกู้ข้อมูลคืนได้นะครับ",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#94a3b8',
-      confirmButtonText: 'ใช่, ลบเลย!',
-      cancelButtonText: 'ยกเลิก'
+      title: 'ยืนยันการลบ?', text: "ลบแล้วจะไม่สามารถกู้ข้อมูลคืนได้นะครับ", icon: 'warning',
+      showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'ใช่, ลบเลย!', cancelButtonText: 'ยกเลิก'
     }).then(async (result) => {
       if (result.isConfirmed) {
         setIsLoading(true);
@@ -95,11 +76,8 @@ export default function RestaurantPOS() {
           await fetch(`/api/menus/${id}`, { method: "DELETE" });
           fetchAllData();
           Swal.fire('ลบแล้ว!', 'เมนูถูกลบออกจากระบบเรียบร้อย', 'success');
-        } catch (error) {
-          Swal.fire('ผิดพลาด', 'ไม่สามารถลบเมนูได้', 'error');
-        } finally {
-          setIsLoading(false);
-        }
+        } catch (error) { Swal.fire('ผิดพลาด', 'ไม่สามารถลบเมนูได้', 'error'); } 
+        finally { setIsLoading(false); }
       }
     });
   };
@@ -118,11 +96,16 @@ export default function RestaurantPOS() {
     setShowPaymentModal(true);
   };
 
-  // --- ระบบชำระเงิน (เพิ่ม Loading ระหว่างบันทึกลง Database) ---
   const confirmPayment = async () => {
+    if (orderType === "ทานที่ร้าน" && !tableNo) {
+      return Swal.fire("ลืมอะไรหรือเปล่า?", "กรุณาระบุหมายเลขโต๊ะด้วยครับ", "warning");
+    }
+
     setIsLoading(true);
-    // เปิดหน้าต่าง Loading ห้ามผู้ใช้กดซี้ซั้ว
     Swal.fire({ title: 'กำลังบันทึกบิล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+
+    // แนบข้อมูลประเภทออเดอร์และโต๊ะไปกับรายการอาหารเพื่อโชว์ในบิล
+    const cartWithDetails = cart.map(item => ({...item, orderType, tableNo}));
 
     try {
       const res = await fetch("/api/orders", {
@@ -130,63 +113,44 @@ export default function RestaurantPOS() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           total_price: cartTotal, 
-          items: cart, 
+          items: cartWithDetails, // ส่งข้อมูลที่มีโต๊ะไปด้วย
           payment_method: paymentMethod 
         }),
       });
-      
       const result = await res.json();
 
       if (res.ok) {
         setLastBill({
-          items: [...cart], 
-          total: cartTotal,
+          items: [...cart], total: cartTotal,
           date: new Date().toLocaleString("th-TH"),
-          orderId: result.id,
-          paymentMethod: paymentMethod 
+          orderId: result.id, paymentMethod: paymentMethod,
+          orderType: orderType, tableNo: tableNo // เก็บไว้โชว์ในใบเสร็จ
         });
         setShowPaymentModal(false);
         setShowBill(true); 
         setCart([]); 
+        setTableNo(""); // รีเซ็ตโต๊ะ
         fetchAllData(); 
-        Swal.close(); // ปิดหน้าต่าง Loading
-      } else { 
-        Swal.fire("ข้อผิดพลาด", "เกิดข้อผิดพลาดในการบันทึกบิล", "error");
-      }
-    } catch (error) { 
-      Swal.fire("ข้อผิดพลาด", "การเชื่อมต่อมีปัญหา", "error");
-    } finally {
-      setIsLoading(false);
-    }
+        Swal.close();
+      } else { Swal.fire("ข้อผิดพลาด", "เกิดข้อผิดพลาดในการบันทึกบิล", "error"); }
+    } catch (error) { Swal.fire("ข้อผิดพลาด", "การเชื่อมต่อมีปัญหา", "error"); } 
+    finally { setIsLoading(false); }
   };
 
-  // --- ระบบเปลี่ยนสถานะออเดอร์ (เพิ่ม Toast แจ้งเตือนมุมขวาบน) ---
   const handleUpdateOrderStatus = async (id, currentStatus) => {
     if (!id || id === 'undefined') return;
     const nextStatus = (currentStatus === 'เสร็จสิ้น') ? 'กำลังทำ' : 'เสร็จสิ้น';
-    
     try {
       const res = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: nextStatus }),
       });
-
       if (res.ok) {
         fetchAllData(); 
-        // โชว์ Toast เล็กๆ มุมขวาบน จะได้ไม่บังจอ
-        Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'success',
-          title: `อัปเดตบิล #${id} เป็น '${nextStatus}'`,
-          showConfirmButton: false,
-          timer: 2000
-        });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `อัปเดตบิล #${id} เป็น '${nextStatus}'`, showConfirmButton: false, timer: 2000 });
       }
-    } catch (error) {
-      console.error("Update failed:", error);
-    }
+    } catch (error) { console.error("Update failed:", error); }
   };
 
   const categories = ["All", ...new Set((Array.isArray(menus) ? menus : []).map((m) => m.category))];
@@ -203,7 +167,7 @@ export default function RestaurantPOS() {
     <div className="app-container">
       <nav className="navbar">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">🍚</span>
+          <span className="text-3xl">🍔</span>
           <h1 className="text-2xl font-black tracking-tighter">RESTO<span className="text-indigo-200">POS</span></h1>
         </div>
         <div className="flex bg-black/10 p-1 rounded-2xl backdrop-blur-md">
@@ -212,39 +176,39 @@ export default function RestaurantPOS() {
         </div>
       </nav>
 
-      <main className="p-6">
+      <main className="p-4 md:p-6">
         {viewMode === "pos" ? (
-          <div className="flex gap-8 h-[calc(100vh-140px)]">
-            <div className="panel-card flex-1 flex flex-col overflow-hidden">
+          <div className="flex flex-col lg:flex-row gap-8 h-auto lg:h-[calc(100vh-140px)]">
+            <div className="panel-card flex-1 flex flex-col overflow-hidden w-full">
               <input type="text" placeholder="🔍 ค้นหาเมนูอาหาร..." value={search} onChange={(e) => setSearch(e.target.value)} className="input-field mb-6" />
               <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
                 {categories.map((cat) => (
-                  <button key={cat} onClick={() => setFilterCategory(cat)} className={`px-6 py-2 rounded-full font-bold transition-all ${filterCategory === cat ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>{cat}</button>
+                  <button key={cat} onClick={() => setFilterCategory(cat)} className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${filterCategory === cat ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>{cat}</button>
                 ))}
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 overflow-y-auto pr-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 overflow-y-auto pr-2 pb-4">
                 {filteredMenus.map((menu) => (
-                  <div key={menu.id} onClick={() => addToCart(menu)} className="group menu-item cursor-pointer">
+                  <div key={menu.id} onClick={() => addToCart(menu)} className="group menu-item cursor-pointer hover:shadow-xl transition-all p-3 border border-slate-100 rounded-[2rem]">
                     <div className="overflow-hidden rounded-[1.5rem] mb-3 shadow-inner bg-slate-100 relative">
-                      <img src={menu.image_url || "https://placehold.co/400x300?text=Food"} className="w-full h-36 object-cover group-hover:scale-110 transition-transform duration-500" />
+                      <img src={menu.image_url || "https://placehold.co/400x300?text=Food"} alt={menu.name} className="w-full h-24 md:h-36 object-cover group-hover:scale-110 transition-transform duration-500" />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300"></div>
                     </div>
-                    <h3 className="font-bold text-slate-800 truncate">{menu.name}</h3>
+                    <h3 className="font-bold text-slate-800 text-sm md:text-base truncate">{menu.name}</h3>
                     <div className="flex justify-between items-center mt-1">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{menu.category}</span>
-                      <span className="text-indigo-600 font-black text-lg">฿{menu.price}</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate max-w-[60%]">{menu.category}</span>
+                      <span className="text-indigo-600 font-black text-sm md:text-lg">฿{menu.price}</span>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="panel-card w-[400px] flex flex-col border-l-4 border-indigo-50">
+            <div className="panel-card w-full lg:w-[400px] flex flex-col border-t-4 lg:border-t-0 lg:border-l-4 border-indigo-50 mt-4 lg:mt-0">
               <div className="flex items-center gap-3 mb-6 border-b pb-4">
                 <span className="text-2xl text-indigo-600">🧾</span>
                 <h2 className="text-2xl font-black text-slate-800 tracking-tighter">ORDER BILL</h2>
               </div>
-              <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
+              <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide min-h-[250px]">
                 {cart.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 opacity-50">
                     <span className="text-7xl">🛒</span>
@@ -254,11 +218,11 @@ export default function RestaurantPOS() {
                   cart.map((item) => (
                     <div key={item.id} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border-2 border-transparent hover:border-indigo-100 transition-all group">
                       <div className="flex-1">
-                        <h4 className="font-bold text-slate-700">{item.name}</h4>
+                        <h4 className="font-bold text-slate-700 text-sm">{item.name}</h4>
                         <p className="text-xs font-bold text-slate-400">฿{item.price} x {item.qty}</p>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="font-black text-indigo-600">฿{item.price * item.qty}</span>
+                        <span className="font-black text-indigo-600 text-sm">฿{item.price * item.qty}</span>
                         <button onClick={() => removeFromCart(item.id)} className="text-slate-300 hover:text-red-500 transition-all text-xl">✕</button>
                       </div>
                     </div>
@@ -266,12 +230,12 @@ export default function RestaurantPOS() {
                 )}
               </div>
               <div className="mt-6 pt-6 border-t-2 border-dashed border-slate-200">
-                <div className="flex justify-between text-3xl font-black text-slate-900 mb-6 tracking-tighter">
+                <div className="flex justify-between text-2xl md:text-3xl font-black text-slate-900 mb-6 tracking-tighter">
                   <span className="text-slate-400 text-sm self-center uppercase tracking-widest">Grand Total</span>
                   <span>฿{cartTotal.toLocaleString()}</span>
                 </div>
-                <button onClick={handleCheckout} disabled={isLoading} className="btn-primary py-5 text-xl disabled:opacity-50 transition-all">
-                  <span>💸</span> CHECKOUT
+                <button onClick={handleCheckout} disabled={isLoading} className="btn-primary w-full py-4 md:py-5 text-lg md:text-xl disabled:opacity-50">
+                  <span>💸</span> {isLoading ? "PROCESSING..." : "CHECKOUT"}
                 </button>
               </div>
             </div>
@@ -281,25 +245,25 @@ export default function RestaurantPOS() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="panel-card bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-none shadow-indigo-200 shadow-2xl">
                 <h3 className="text-indigo-200 font-bold uppercase tracking-widest text-xs mb-2">Total Revenue</h3>
-                <p className="text-5xl font-black tracking-tighter">฿{(Array.isArray(orders) ? orders : []).reduce((sum, o) => sum + Number(o.total_price), 0).toLocaleString()}</p>
+                <p className="text-4xl md:text-5xl font-black tracking-tighter truncate">฿{(Array.isArray(orders) ? orders : []).reduce((sum, o) => sum + Number(o.total_price), 0).toLocaleString()}</p>
               </div>
               <div className="panel-card">
                 <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-2">Orders Today</h3>
-                <p className="text-5xl font-black text-slate-800 tracking-tighter">{(Array.isArray(orders) ? orders : []).length} <span className="text-lg text-slate-300 ml-2">Bills</span></p>
+                <p className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter">{(Array.isArray(orders) ? orders : []).length} <span className="text-lg text-slate-300 ml-2">Bills</span></p>
               </div>
               <div className="panel-card">
                 <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-2">Avg. Ticket Size</h3>
-                <p className="text-5xl font-black text-slate-800 tracking-tighter">฿{(Array.isArray(orders) ? orders : []).length > 0 ? Math.round((Array.isArray(orders) ? orders : []).reduce((sum, o) => sum + Number(o.total_price), 0) / (Array.isArray(orders) ? orders : []).length).toLocaleString() : 0}</p>
+                <p className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter">฿{(Array.isArray(orders) ? orders : []).length > 0 ? Math.round((Array.isArray(orders) ? orders : []).reduce((sum, o) => sum + Number(o.total_price), 0) / (Array.isArray(orders) ? orders : []).length).toLocaleString() : 0}</p>
               </div>
             </div>
 
-            <div className="panel-card">
+            <div className="panel-card overflow-hidden">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3"><span className="bg-indigo-100 p-2 rounded-xl text-lg">📜</span> Order History</h2>
-                <div className="flex bg-slate-100 p-1 rounded-xl">
-                  <button onClick={() => setOrderFilter("All")} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === "All" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>ทั้งหมด</button>
-                  <button onClick={() => setOrderFilter("กำลังทำ")} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === "กำลังทำ" ? "bg-amber-400 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>⏳ กำลังทำ</button>
-                  <button onClick={() => setOrderFilter("เสร็จสิ้น")} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === "เสร็จสิ้น" ? "bg-green-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>✅ เสร็จสิ้น</button>
+                <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl w-full md:w-auto">
+                  <button onClick={() => setOrderFilter("All")} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === "All" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"}`}>ทั้งหมด</button>
+                  <button onClick={() => setOrderFilter("กำลังทำ")} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === "กำลังทำ" ? "bg-amber-400 text-white shadow-sm" : "text-slate-500"}`}>⏳ กำลังทำ</button>
+                  <button onClick={() => setOrderFilter("เสร็จสิ้น")} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === "เสร็จสิ้น" ? "bg-green-500 text-white shadow-sm" : "text-slate-500"}`}>✅ เสร็จสิ้น</button>
                 </div>
               </div>
 
@@ -307,31 +271,34 @@ export default function RestaurantPOS() {
                 {filteredOrdersList.length === 0 ? <p className="text-center py-10 text-slate-300 font-bold uppercase tracking-widest">ไม่มีบิลในหมวดหมู่นี้</p> : 
                  filteredOrdersList.map((order) => (
                   <div key={order.id} className="bg-white border-2 border-slate-50 rounded-3xl overflow-hidden transition-all hover:border-indigo-100 hover:shadow-xl">
-                    <div onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)} className="flex justify-between items-center p-6 cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                      <div className="flex gap-6 items-center">
+                    <div onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)} className="flex flex-col md:flex-row justify-between p-4 md:p-6 cursor-pointer bg-slate-50/50 hover:bg-slate-50 gap-4 md:gap-0">
+                      <div className="flex gap-4 md:gap-6 items-center flex-wrap">
                         <span className="font-black text-indigo-600 text-lg">#{order.id}</span>
                         <button 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            handleUpdateOrderStatus(order.id, order.status); 
-                          }}
+                          onClick={(e) => { e.stopPropagation(); handleUpdateOrderStatus(order.id, order.status); }}
                           className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all transform hover:scale-110 active:scale-95 ${
-                            order.status === 'เสร็จสิ้น' ? 'bg-green-500 text-white shadow-md' : 'bg-amber-400 text-white shadow-md'
+                            order.status === 'เสร็จสิ้น' ? 'bg-green-500 text-white shadow-lg' : 'bg-amber-400 text-white shadow-lg'
                           }`}
                         >
                           {order.status || 'กำลังทำ'}
                         </button>
                         <span className="text-xs font-bold text-slate-400">{new Date(order.created_at).toLocaleString('th-TH')}</span>
+                        {/* โชว์ประเภทออเดอร์ในประวัติ */}
+                        {order.items && order.items[0]?.orderType && (
+                           <span className="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-1 rounded-md ml-2">
+                             {order.items[0].orderType} {order.items[0].tableNo ? `(โต๊ะ ${order.items[0].tableNo})` : ''}
+                           </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-8">
-                        <span className="text-2xl font-black text-slate-800 tracking-tighter">฿{Number(order.total_price).toLocaleString()}</span>
+                      <div className="flex items-center justify-between md:justify-end gap-8 w-full md:w-auto">
+                        <span className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter">฿{Number(order.total_price).toLocaleString()}</span>
                         <span className={`text-slate-300 text-xl transition-transform ${expandedOrderId === order.id ? 'rotate-180' : ''}`}>▼</span>
                       </div>
                     </div>
                     {expandedOrderId === order.id && (
-                      <div className="p-8 border-t-2 border-dashed border-slate-100 bg-white">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Itemized Receipt</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                      <div className="p-4 md:p-8 border-t-2 border-dashed border-slate-100 bg-white">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 md:mb-6">Itemized Receipt</h4>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-4">
                           {Array.isArray(order.items) && order.items.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-sm border-b border-slate-50 pb-2">
                               <span className="text-slate-600 font-bold">{item.name} <span className="text-slate-300 text-[10px] ml-1">x{item.qty}</span></span>
@@ -350,24 +317,24 @@ export default function RestaurantPOS() {
               <div className="panel-card flex-1 w-full overflow-hidden">
                 <h2 className="text-2xl font-black mb-8">Menu Management</h2>
                 <div className="overflow-x-auto rounded-2xl border border-slate-100">
-                  <table className="w-full text-left">
+                  <table className="w-full text-left min-w-[500px]">
                     <thead className="table-header">
-                      <tr><th className="p-6">Menu</th><th className="p-6">Category</th><th className="p-6">Price</th><th className="p-6 text-center">Actions</th></tr>
+                      <tr><th className="p-4 md:p-6">Menu</th><th className="p-4 md:p-6">Category</th><th className="p-4 md:p-6">Price</th><th className="p-4 md:p-6 text-center">Actions</th></tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {(Array.isArray(menus) ? menus : []).map((m) => (
                         <tr key={m.id} className="hover:bg-slate-50 transition-colors group">
-                          <td className="p-6">
+                          <td className="p-4 md:p-6">
                             <div className="flex items-center gap-4">
-                              <img src={m.image_url || "https://placehold.co/100"} className="w-14 h-14 rounded-2xl object-cover shadow-md" />
-                              <span className="font-bold text-slate-700">{m.name}</span>
+                              <img src={m.image_url || "https://placehold.co/100"} alt="menu" className="w-10 h-10 md:w-14 md:h-14 rounded-2xl object-cover shadow-md" />
+                              <span className="font-bold text-slate-700 text-sm md:text-base">{m.name}</span>
                             </div>
                           </td>
-                          <td className="p-6"><span className="category-badge">{m.category}</span></td>
-                          <td className="p-6 font-black text-indigo-600">฿{m.price}</td>
-                          <td className="p-6 text-center space-x-6">
-                            <button onClick={() => handleEdit(m)} disabled={isLoading} className="text-amber-500 font-black text-xs uppercase hover:text-amber-600 disabled:opacity-50">Edit</button>
-                            <button onClick={() => handleDelete(m.id)} disabled={isLoading} className="text-red-400 font-black text-xs uppercase hover:text-red-600 disabled:opacity-50">Delete</button>
+                          <td className="p-4 md:p-6"><span className="category-badge text-[10px] md:text-xs">{m.category}</span></td>
+                          <td className="p-4 md:p-6 font-black text-indigo-600">฿{m.price}</td>
+                          <td className="p-4 md:p-6 text-center space-x-2 md:space-x-6">
+                            <button onClick={() => handleEdit(m)} disabled={isLoading} className="text-amber-500 font-black text-[10px] md:text-xs uppercase hover:text-amber-600 disabled:opacity-50">Edit</button>
+                            <button onClick={() => handleDelete(m.id)} disabled={isLoading} className="text-red-400 font-black text-[10px] md:text-xs uppercase hover:text-red-600 disabled:opacity-50">Delete</button>
                           </td>
                         </tr>
                       ))}
@@ -379,24 +346,12 @@ export default function RestaurantPOS() {
               <div className="panel-card w-full lg:w-[400px] h-fit sticky top-28 border-t-4 border-indigo-500">
                 <h2 className="text-2xl font-black mb-6 uppercase tracking-tighter">{editId ? "✏️ Edit Item" : "➕ Add New Item"}</h2>
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  <div>
-                    <label className="input-label">Food Name</label>
-                    <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" required />
-                  </div>
+                  <div><label className="input-label">Food Name</label><input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field w-full" required /></div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="input-label">Price (฿)</label>
-                      <input type="number" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="input-field" required />
-                    </div>
-                    <div>
-                      <label className="input-label">Category</label>
-                      <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field" required />
-                    </div>
+                    <div><label className="input-label">Price (฿)</label><input type="number" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="input-field w-full" required /></div>
+                    <div><label className="input-label">Category</label><input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field w-full" required /></div>
                   </div>
-                  <div>
-                    <label className="input-label">Image URL</label>
-                    <input type="text" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} className="input-field" placeholder="https://..." />
-                  </div>
+                  <div><label className="input-label">Image URL</label><input type="url" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} className="input-field w-full" placeholder="https://..." /></div>
                   <button type="submit" disabled={isLoading} className={`w-full ${editId ? "btn-primary bg-amber-500 hover:bg-amber-600" : "btn-secondary"} disabled:opacity-50 transition-all`}>
                     {isLoading ? "PROCESSING..." : (editId ? "UPDATE MENU" : "SAVE NEW MENU")}
                   </button>
@@ -408,28 +363,49 @@ export default function RestaurantPOS() {
         )}
       </main>
 
-      {/* Payment Selection Modal */}
+      {/* Payment Selection Modal (อัปเกรดให้มีเลือกโต๊ะ) */}
       {showPaymentModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-md rounded-[3rem] p-10 overflow-hidden shadow-2xl">
-            <h2 className="text-3xl font-black text-slate-800 mb-2">PAYMENT</h2>
-            <div className="grid grid-cols-2 gap-4 my-8">
-              <div onClick={() => setPaymentMethod("เงินสด")} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex flex-col items-center gap-3 ${paymentMethod === "เงินสด" ? "border-indigo-600 bg-indigo-50 shadow-md" : "border-slate-100 hover:border-slate-200"}`}>
-                <span className="text-4xl">💵</span><span className="font-black text-sm uppercase text-slate-700">Cash</span>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto py-10">
+          <div className="bg-white w-full max-w-md rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 shadow-2xl my-auto">
+            <h2 className="text-2xl md:text-3xl font-black text-slate-800 mb-2">CHECKOUT</h2>
+            <p className="text-slate-400 text-sm font-bold mb-6">กรุณาระบุข้อมูลออเดอร์และการชำระเงิน</p>
+
+            {/* ส่วนเลือกประเภทออเดอร์ */}
+            <div className="bg-slate-50 p-4 rounded-2xl mb-6 border border-slate-100">
+              <label className="input-label text-xs">Order Type (ประเภทรายการ)</label>
+              <div className="flex gap-2 mt-2 mb-4">
+                <button onClick={() => setOrderType("ทานที่ร้าน")} className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${orderType === "ทานที่ร้าน" ? "bg-indigo-600 text-white shadow-md" : "bg-white text-slate-500 border border-slate-200"}`}>🍽️ ทานที่ร้าน</button>
+                <button onClick={() => {setOrderType("กลับบ้าน"); setTableNo("");}} className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${orderType === "กลับบ้าน" ? "bg-indigo-600 text-white shadow-md" : "bg-white text-slate-500 border border-slate-200"}`}>🛍️ กลับบ้าน</button>
               </div>
-              <div onClick={() => setPaymentMethod("PromptPay")} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex flex-col items-center gap-3 ${paymentMethod === "PromptPay" ? "border-indigo-600 bg-indigo-50 shadow-md" : "border-slate-100 hover:border-slate-200"}`}>
-                <span className="text-4xl">📱</span><span className="font-black text-sm uppercase text-slate-700">PromptPay</span>
+              
+              {/* ช่องกรอกเบอร์โต๊ะ (โชว์เฉพาะทานที่ร้าน) */}
+              {orderType === "ทานที่ร้าน" && (
+                <div className="animate-in fade-in slide-in-from-top-2">
+                  <input type="text" placeholder="ระบุหมายเลขโต๊ะ (เช่น โต๊ะ 5)" value={tableNo} onChange={(e) => setTableNo(e.target.value)} className="input-field w-full text-center font-bold text-indigo-600" />
+                </div>
+              )}
+            </div>
+
+            <label className="input-label text-xs mb-2 block">Payment Method (วิธีชำระเงิน)</label>
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div onClick={() => setPaymentMethod("เงินสด")} className={`p-4 md:p-6 rounded-2xl border-2 cursor-pointer transition-all flex flex-col items-center gap-2 ${paymentMethod === "เงินสด" ? "border-indigo-600 bg-indigo-50 shadow-sm" : "border-slate-100 hover:border-slate-200"}`}>
+                <span className="text-3xl md:text-4xl">💵</span><span className="font-black text-[10px] md:text-xs uppercase text-slate-700">Cash</span>
+              </div>
+              <div onClick={() => setPaymentMethod("PromptPay")} className={`p-4 md:p-6 rounded-2xl border-2 cursor-pointer transition-all flex flex-col items-center gap-2 ${paymentMethod === "PromptPay" ? "border-indigo-600 bg-indigo-50 shadow-sm" : "border-slate-100 hover:border-slate-200"}`}>
+                <span className="text-3xl md:text-4xl">📱</span><span className="font-black text-[10px] md:text-xs uppercase text-slate-700">PromptPay</span>
               </div>
             </div>
+
             {paymentMethod === "PromptPay" && (
-              <div className="bg-slate-50 p-6 rounded-3xl mb-8 flex flex-col items-center">
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PROMPTPAY_${cartTotal}`} alt="QR Code" className="w-32 h-32 mb-4 rounded-xl" />
-                <p className="text-indigo-600 font-bold text-xl">฿{cartTotal.toLocaleString()}</p>
+              <div className="bg-slate-50 p-6 rounded-3xl mb-8 flex flex-col items-center border border-slate-100">
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PROMPTPAY_${cartTotal}`} alt="QR Code" className="w-24 h-24 md:w-32 md:h-32 mb-4 rounded-xl shadow-sm" />
+                <p className="text-indigo-600 font-black text-xl md:text-2xl">฿{cartTotal.toLocaleString()}</p>
               </div>
             )}
-            <div className="flex gap-4">
-              <button onClick={confirmPayment} disabled={isLoading} className="btn-primary flex-1 disabled:opacity-50">ยืนยันการชำระเงิน</button>
-              <button onClick={() => setShowPaymentModal(false)} disabled={isLoading} className="btn-outline border-none bg-slate-50 text-slate-400 hover:bg-slate-100 disabled:opacity-50">ยกเลิก</button>
+
+            <div className="flex flex-col gap-3">
+              <button onClick={confirmPayment} disabled={isLoading} className="btn-primary w-full py-4 disabled:opacity-50 text-lg shadow-indigo-200">ยืนยันการสั่งซื้อ</button>
+              <button onClick={() => setShowPaymentModal(false)} disabled={isLoading} className="btn-outline w-full border-none bg-slate-50 text-slate-400 py-4 disabled:opacity-50 hover:bg-slate-100">ยกเลิก</button>
             </div>
           </div>
         </div>
@@ -438,15 +414,21 @@ export default function RestaurantPOS() {
       {/* Bill Receipt Modal */}
       {showBill && lastBill && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 print:bg-white print:p-0">
-          <div className="bg-white w-full max-w-sm rounded-[3rem] p-12 shadow-2xl print:shadow-none print:max-w-[80mm] print:p-4 print:m-0">
+          <div className="bg-white w-full max-w-sm rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 shadow-2xl print:shadow-none print:max-w-[80mm] print:m-0 print:p-4">
             <div className="text-center">
-              <span className="text-6xl block mb-6 print:mb-2 print:text-4xl">🍔</span>
-              <h2 className="text-3xl font-black mb-2 print:text-xl">RESTOPOS</h2>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-8 print:mb-4 print:text-black">Bill #{lastBill.orderId} <br className="hidden print:block"/> {lastBill.date}</p>
-              <div className="space-y-4 mb-6 border-t-2 border-dashed border-slate-100 pt-8 print:pt-4 print:mb-4 print:border-black">
+              <span className="text-5xl md:text-6xl block mb-4 md:mb-6 print:text-4xl">🍔</span>
+              <h2 className="text-2xl md:text-3xl font-black mb-2 print:text-xl">RESTOPOS</h2>
+              <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] md:tracking-[0.3em] mb-2 print:text-black">Bill #{lastBill.orderId} <br className="hidden print:block"/> {lastBill.date}</p>
+              
+              {/* โชว์ประเภทออเดอร์ในใบเสร็จ */}
+              <div className="inline-block bg-slate-100 text-slate-700 font-bold px-3 py-1 rounded-full text-[10px] mb-6 print:border print:border-black print:bg-white">
+                {lastBill.orderType} {lastBill.tableNo && `(โต๊ะ ${lastBill.tableNo})`}
+              </div>
+
+              <div className="space-y-3 md:space-y-4 mb-6 border-t-2 border-dashed border-slate-100 pt-6 md:pt-8 print:border-black print:pt-4">
                 {lastBill.items.map((it) => (
-                  <div key={it.id} className="flex justify-between text-sm font-black print:text-xs">
-                    <span>{it.name} <span className="text-[10px] text-slate-400 ml-1 print:text-black">x{it.qty}</span></span>
+                  <div key={it.id} className="flex justify-between text-xs md:text-sm font-black print:text-xs">
+                    <span className="text-left">{it.name} <span className="text-[10px] text-slate-400 ml-1 print:text-black">x{it.qty}</span></span>
                     <span>฿{(it.price * it.qty).toLocaleString()}</span>
                   </div>
                 ))}
@@ -457,12 +439,12 @@ export default function RestaurantPOS() {
               </div>
               <div className="flex justify-between items-center mb-10 print:mb-6">
                 <span className="font-black text-slate-400 uppercase text-xs print:text-black">Total</span>
-                <span className="text-5xl font-black text-indigo-600 print:text-2xl print:text-black">฿{lastBill.total.toLocaleString()}</span>
+                <span className="text-3xl md:text-5xl font-black text-indigo-600 print:text-2xl print:text-black">฿{lastBill.total.toLocaleString()}</span>
               </div>
             </div>
-            <div className="flex gap-4 print:hidden">
-              <button onClick={() => window.print()} className="btn-primary flex-1">PRINT</button>
-              <button onClick={() => setShowBill(false)} className="btn-outline flex-1 bg-slate-50 border-none hover:bg-slate-100">CLOSE</button>
+            <div className="flex flex-col sm:flex-row gap-4 print:hidden">
+              <button onClick={() => window.print()} className="btn-primary flex-1 py-3">PRINT</button>
+              <button onClick={() => setShowBill(false)} className="btn-outline flex-1 py-3 border-none bg-slate-50">CLOSE</button>
             </div>
           </div>
         </div>
