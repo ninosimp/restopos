@@ -3,8 +3,14 @@ import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 
 export default function RestaurantPOS() {
+  // --- ระบบ Auth ---
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authMode, setAuthMode] = useState("login"); // 'login' หรือ 'register'
+  const [authForm, setAuthForm] = useState({ username: "", password: "", role: "cashier" });
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+
   // -------------------- STATE (ตัวแปรเก็บข้อมูล) --------------------
- const [menus, setMenus] = useState([]); // เก็บรายการเมนูทั้งหมด
+  const [menus, setMenus] = useState([]); // เก็บรายการเมนูทั้งหมด
   const [orders, setOrders] = useState([]); // เก็บรายการออเดอร์ทั้งหมด
   const [cart, setCart] = useState([]); // ตะกร้าสินค้า
   const [viewMode, setViewMode] = useState("pos"); // สลับหน้า pos / หลังบ้าน
@@ -33,6 +39,7 @@ export default function RestaurantPOS() {
 
   //FETCH DATA
   const fetchAllData = async () => {
+    if (!currentUser) return; // เพิ่มเงื่อนไขให้ดึงข้อมูลเฉพาะตอน Login แล้ว
     try {
        // ดึงเมนู
       const resMenu = await fetch(`/api/menus?t=${Date.now()}`, { cache: "no-store" });
@@ -47,7 +54,104 @@ export default function RestaurantPOS() {
   };
 
   // โหลดข้อมูลครั้งแรก
-  useEffect(() => { fetchAllData(); }, []);
+  useEffect(() => { fetchAllData(); }, [currentUser]); // เพิ่ม currentUser เป็น dependency
+
+  // --- ระบบ Login & Register ---
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setIsAuthLoading(true);
+    const url = authMode === "login" ? "/api/auth/login" : "/api/auth/register";
+    
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(authForm),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        if (authMode === "login") {
+          setCurrentUser(data.user);
+          Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `ยินดีต้อนรับคุณ ${data.user.username}`, showConfirmButton: false, timer: 1500 });
+        } else {
+          Swal.fire('สำเร็จ!', 'สมัครสมาชิกเรียบร้อย กรุณาเข้าสู่ระบบ', 'success');
+          setAuthMode("login");
+          setAuthForm({ ...authForm, password: "" });
+        }
+      } else {
+        Swal.fire('ผิดพลาด', data.error, 'error');
+      }
+    } catch (error) {
+      Swal.fire('ผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    Swal.fire({
+      title: 'ออกจากระบบ?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'ออกจากระบบ',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setCurrentUser(null);
+        setViewMode("pos");
+        setCart([]);
+      }
+    });
+  };
+
+  // --- หากยังไม่ได้ Login ให้แสดงหน้า Auth ---
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 relative overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+        
+        <div className="bg-white/80 backdrop-blur-xl p-8 md:p-12 rounded-[3rem] shadow-2xl w-full max-w-md z-10 border border-white">
+          <div className="text-center mb-10">
+            <span className="text-6xl mb-4 block animate-bounce">🍽️</span>
+            <h1 className="text-4xl font-black tracking-tighter text-slate-800">เจ้านายหมูทอด</h1>
+            <p className="text-slate-400 font-bold mt-2 text-sm uppercase tracking-widest">{authMode === 'login' ? 'เข้าสู่ระบบเพื่อเริ่มใช้งาน' : 'ลงทะเบียนผู้ใช้งานใหม่'}</p>
+          </div>
+
+          <form onSubmit={handleAuthSubmit} className="space-y-6">
+            <div>
+              <label className="input-label">Username</label>
+              <input type="text" value={authForm.username} onChange={(e) => setAuthForm({...authForm, username: e.target.value})} className="input-field bg-white" required placeholder="ชื่อผู้ใช้งาน..." />
+            </div>
+            <div>
+              <label className="input-label">Password</label>
+              <input type="password" value={authForm.password} onChange={(e) => setAuthForm({...authForm, password: e.target.value})} className="input-field bg-white" required placeholder="รหัสผ่าน..." />
+            </div>
+            
+            {authMode === 'register' && (
+              <div className="animate-in fade-in">
+                <label className="input-label">Role (สิทธิ์ผู้ใช้งาน)</label>
+                <select value={authForm.role} onChange={(e) => setAuthForm({...authForm, role: e.target.value})} className="input-field bg-white font-bold text-slate-600">
+                  <option value="cashier">👨‍🍳 พนักงานแคชเชียร์</option>
+                  <option value="manager">👑 ผู้จัดการร้าน (Manager)</option>
+                </select>
+              </div>
+            )}
+
+            <button type="submit" disabled={isAuthLoading} className="btn-primary w-full py-4 text-lg mt-8 disabled:opacity-50">
+              {isAuthLoading ? "กำลังประมวลผล..." : (authMode === 'login' ? "เข้าสู่ระบบ (LOGIN)" : "สมัครสมาชิก (REGISTER)")}
+            </button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <button onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthForm({ username: "", password: "", role: "cashier" }); }} className="text-sm font-bold text-slate-400 hover:text-indigo-600 transition-colors">
+              {authMode === 'login' ? 'ยังไม่มีบัญชีใช่ไหม? กดเพื่อสมัครสมาชิก' : 'มีบัญชีอยู่แล้ว? กดเพื่อเข้าสู่ระบบ'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // --- CRUD เมนู ---
   const handleSubmit = async (e) => {
@@ -228,18 +332,33 @@ export default function RestaurantPOS() {
     return (o.status || 'กำลังทำ') === orderFilter;
   });
 
-  
-
   return (
     <div className="app-container">
-      <nav className="navbar">
+      <nav className="navbar flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-3">
           <span className="text-3xl">🍽️</span>
           <h1 className="text-2xl font-black tracking-tighter">เจ้านายหมูทอด<span className="text-indigo-200"></span></h1>
         </div>
+        
+        {/* ควบคุมการแสดงปุ่มด้วย Role */}
         <div className="flex bg-black/10 p-1 rounded-2xl backdrop-blur-md">
           <button onClick={() => setViewMode("pos")} className={viewMode === "pos" ? "btn-nav-active" : "btn-nav"}>หน้าร้าน</button>
-          <button onClick={() => setViewMode("manage")} className={viewMode === "manage" ? "btn-nav-active" : "btn-nav"}>หลังบ้าน</button>
+          
+          {/* ซ่อนปุ่มหลังบ้านถ้าเป็นแค่ cashier */}
+          {currentUser.role === 'manager' && (
+            <button onClick={() => setViewMode("manage")} className={viewMode === "manage" ? "btn-nav-active" : "btn-nav"}>หลังบ้าน</button>
+          )}
+        </div>
+
+        {/* ข้อมูลโปรไฟล์และปุ่ม Log out */}
+        <div className="flex items-center gap-4 border-l-2 pl-4 border-slate-100">
+          <div className="text-right hidden md:block">
+            <p className="text-sm font-black text-slate-800">{currentUser.username}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{currentUser.role === 'manager' ? 'ผู้จัดการ' : 'แคชเชียร์'}</p>
+          </div>
+          <button onClick={handleLogout} className="btn-outline border-none bg-red-50 text-red-500 hover:bg-red-100 px-4 py-2 text-sm font-bold rounded-xl">
+            ออกระบบ
+          </button>
         </div>
       </nav>
 
@@ -309,7 +428,6 @@ export default function RestaurantPOS() {
           </div>
         ) : (
           <div className="max-w-7xl mx-auto flex flex-col gap-8 animate-in fade-in duration-500">
-            {/* โค้ดส่วนหลังบ้านเหมือนเดิมทุกประการ... */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="panel-card bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-none shadow-indigo-200 shadow-2xl">
                 <h3 className="text-indigo-200 font-bold uppercase tracking-widest text-xs mb-2">Total Revenue</h3>
@@ -351,11 +469,6 @@ export default function RestaurantPOS() {
                           {order.status || 'กำลังทำ'}
                         </button>
                         <span className="text-xs font-bold text-slate-400">{new Date(order.created_at).toLocaleString('th-TH')}</span>
-                        {order.items && order.items[0]?.orderType && (
-                           <span className="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-1 rounded-md ml-2">
-                             {order.items[0].orderType} {order.items[0].tableNo ? `(โต๊ะ ${order.items[0].tableNo})` : ''}
-                           </span>
-                        )}
                       </div>
                       <div className="flex items-center justify-between md:justify-end gap-8 w-full md:w-auto">
                         <span className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter">฿{Number(order.total_price).toLocaleString()}</span>
