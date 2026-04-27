@@ -39,7 +39,7 @@ export default function RestaurantPOS() {
 
   //FETCH DATA
   const fetchAllData = async () => {
-    if (!currentUser) return; // เพิ่มเงื่อนไขให้ดึงข้อมูลเฉพาะตอน Login แล้ว
+    if (!currentUser) return; // ดึงข้อมูลเฉพาะตอน Login 
     try {
        // ดึงเมนู
       const resMenu = await fetch(`/api/menus?t=${Date.now()}`, { cache: "no-store" });
@@ -56,7 +56,7 @@ export default function RestaurantPOS() {
   // โหลดข้อมูลครั้งแรก
   useEffect(() => { fetchAllData(); }, [currentUser]); // เพิ่ม currentUser เป็น dependency
 
-  // --- ระบบ Login & Register ---
+  // ระบบ Login & Register
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setIsAuthLoading(true);
@@ -89,6 +89,8 @@ export default function RestaurantPOS() {
     }
   };
 
+
+  //ปุ่มlogout
   const handleLogout = () => {
     Swal.fire({
       title: 'ออกจากระบบ?',
@@ -104,7 +106,7 @@ export default function RestaurantPOS() {
     });
   };
 
-  // --- หากยังไม่ได้ Login ให้แสดงหน้า Auth ---
+  //  หากยังไม่ได้ Login ให้แสดงหน้า login
   if (!currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 relative overflow-hidden">
@@ -138,12 +140,14 @@ export default function RestaurantPOS() {
               </div>
             )}
 
+            {/* 🟢 [ปุ่ม: หน้า Login] ปุ่มสีน้ำเงินใหญ่ๆ ใช้สำหรับกด "เข้าสู่ระบบ" หรือ "สมัครสมาชิก" */}
             <button type="submit" disabled={isAuthLoading} className="btn-primary w-full py-4 text-lg mt-8 disabled:opacity-50">
               {isAuthLoading ? "กำลังประมวลผล..." : (authMode === 'login' ? "เข้าสู่ระบบ (LOGIN)" : "สมัครสมาชิก (REGISTER)")}
             </button>
           </form>
 
           <div className="mt-8 text-center">
+            {/* 🟢 [ปุ่ม: หน้า Login] ปุ่มตัวหนังสือเล็กๆ ด้านล่าง ใช้สำหรับสลับหน้าไปมาระหว่าง เข้าสู่ระบบ <-> สมัครสมาชิก */}
             <button onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthForm({ username: "", password: "", role: "cashier" }); }} className="text-sm font-bold text-slate-400 hover:text-indigo-600 transition-colors">
               {authMode === 'login' ? 'ยังไม่มีบัญชีใช่ไหม? กดเพื่อสมัครสมาชิก' : 'มีบัญชีอยู่แล้ว? กดเพื่อเข้าสู่ระบบ'}
             </button>
@@ -153,7 +157,7 @@ export default function RestaurantPOS() {
     );
   }
 
-  // --- CRUD เมนู ---
+  // CRUD เมนู 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -342,11 +346,15 @@ export default function RestaurantPOS() {
         
         {/* ควบคุมการแสดงปุ่มด้วย Role */}
         <div className="flex bg-black/10 p-1 rounded-2xl backdrop-blur-md">
+
+          {/* 🟢 [ปุ่ม: Navbar] ปุ่มแถบเมนูด้านบน กดเพื่อสลับไป "หน้าแคชเชียร์ (หน้าร้าน)" */}
           <button onClick={() => setViewMode("pos")} className={viewMode === "pos" ? "btn-nav-active" : "btn-nav"}>หน้าร้าน</button>
           
           {/* ซ่อนปุ่มหลังบ้านถ้าเป็นแค่ cashier */}
           {currentUser.role === 'manager' && (
+            // 🟢 [ปุ่ม: Navbar] ปุ่มแถบเมนูด้านบน กดเพื่อสลับไป "หน้าผู้จัดการ (หลังบ้าน)" (เห็นเฉพาะผู้จัดการ)
             <button onClick={() => setViewMode("manage")} className={viewMode === "manage" ? "btn-nav-active" : "btn-nav"}>หลังบ้าน</button>
+          
           )}
         </div>
 
@@ -356,9 +364,12 @@ export default function RestaurantPOS() {
             <p className="text-sm font-black text-slate-800">{currentUser.username}</p>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{currentUser.role === 'manager' ? 'ผู้จัดการ' : 'แคชเชียร์'}</p>
           </div>
+          
+          {/* 🟢 [ปุ่ม: Navbar] ปุ่มตัวหนังสือสีแดงมุมขวาบน กดเพื่อ "ออกจากระบบ (Logout)" */}
           <button onClick={handleLogout} className="btn-outline border-none bg-red-50 text-red-500 hover:bg-red-100 px-4 py-2 text-sm font-bold rounded-xl">
             ออกระบบ
           </button>
+        
         </div>
       </nav>
 
@@ -369,11 +380,16 @@ export default function RestaurantPOS() {
               <input type="text" placeholder="🔍 ค้นหาเมนูอาหาร..." value={search} onChange={(e) => setSearch(e.target.value)} className="input-field mb-6" />
               <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
                 {categories.map((cat) => (
+
+                  // 🟢 [ปุ่ม: หน้าร้าน] แถบปุ่ม Filter หมวดหมู่ (เช่น อาหารจานเดียว, เครื่องดื่ม) กดเพื่อกรองอาหาร
                   <button key={cat} onClick={() => setFilterCategory(cat)} className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${filterCategory === cat ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>{cat}</button>
+
                 ))}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 overflow-y-auto pr-2 pb-4">
                 {filteredMenus.map((menu) => (
+
+                  // 🟢 [ปุ่ม: หน้าร้าน] กล่องเมนูอาหารแต่ละกล่อง กดตรงไหนก็ได้ในรูป/ชื่อ เพื่อเลือกอาหารชิ้นนั้นลงตะกร้า
                   <div key={menu.id} onClick={() => handleMenuClick(menu)} className="group menu-item cursor-pointer hover:shadow-xl transition-all p-3 border border-slate-100 rounded-[2rem]">
                     <div className="overflow-hidden rounded-[1.5rem] mb-3 shadow-inner bg-slate-100 relative">
                       <img src={menu.image_url || "https://placehold.co/400x300?text=Food"} alt={menu.name} className="w-full h-24 md:h-36 object-cover group-hover:scale-110 transition-transform duration-500" />
@@ -409,7 +425,10 @@ export default function RestaurantPOS() {
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="font-black text-indigo-600 text-sm">฿{item.price * item.qty}</span>
+                        
+                        {/* 🟢 [ปุ่ม: ตะกร้าสินค้า] ปุ่มกากบาท "✕" ใช้สำหรับกดลบอาหารจานนั้นๆ ออกจากตะกร้า */}
                         <button onClick={() => removeFromCart(item.id)} className="text-slate-300 hover:text-red-500 transition-all text-xl">✕</button>
+                      
                       </div>
                     </div>
                   ))
@@ -420,7 +439,10 @@ export default function RestaurantPOS() {
                   <span className="text-slate-400 text-sm self-center uppercase tracking-widest">Grand Total</span>
                   <span>฿{cartTotal.toLocaleString()}</span>
                 </div>
+
+                {/* 🟢 [ปุ่ม: ตะกร้าสินค้า] ปุ่มสีน้ำเงินด้านล่างสุด กดเพื่อเปิดหน้าต่าง "ชำระเงิน (CHECKOUT)" */}
                 <button onClick={handleCheckout} disabled={isLoading} className="btn-primary w-full py-4 md:py-5 text-lg md:text-xl disabled:opacity-50">
+                  
                   <span>💸</span> {isLoading ? "PROCESSING..." : "CHECKOUT"}
                 </button>
               </div>
@@ -447,9 +469,12 @@ export default function RestaurantPOS() {
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3"><span className="bg-indigo-100 p-2 rounded-xl text-lg">📜</span> Order History</h2>
                 <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl w-full md:w-auto">
+
+                  {/* 🟢 [ปุ่ม: หลังบ้าน] กลุ่มปุ่ม 3 อัน ใช้สำหรับกรองประวัติบิลตามสถานะ (ทั้งหมด / กำลังทำ / เสร็จสิ้น) */}
                   <button onClick={() => setOrderFilter("All")} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === "All" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"}`}>ทั้งหมด</button>
                   <button onClick={() => setOrderFilter("กำลังทำ")} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === "กำลังทำ" ? "bg-amber-400 text-white shadow-sm" : "text-slate-500"}`}>⏳ กำลังทำ</button>
                   <button onClick={() => setOrderFilter("เสร็จสิ้น")} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === "เสร็จสิ้น" ? "bg-green-500 text-white shadow-sm" : "text-slate-500"}`}>✅ เสร็จสิ้น</button>
+                
                 </div>
               </div>
 
@@ -457,9 +482,14 @@ export default function RestaurantPOS() {
                 {filteredOrdersList.length === 0 ? <p className="text-center py-10 text-slate-300 font-bold uppercase tracking-widest">ไม่มีบิลในหมวดหมู่นี้</p> : 
                  filteredOrdersList.map((order) => (
                   <div key={order.id} className="bg-white border-2 border-slate-50 rounded-3xl overflow-hidden transition-all hover:border-indigo-100 hover:shadow-xl">
+                    
+                    {/* 🟢 [ปุ่ม: หลังบ้าน] กดที่แถวของบิลแต่ละอัน เพื่อสไลด์เปิด/ปิดดูรายละเอียดเมนูในบิลนั้น (Itemized Receipt) */}
                     <div onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)} className="flex flex-col md:flex-row justify-between p-4 md:p-6 cursor-pointer bg-slate-50/50 hover:bg-slate-50 gap-4 md:gap-0">
+                      
                       <div className="flex gap-4 md:gap-6 items-center flex-wrap">
                         <span className="font-black text-indigo-600 text-lg">#{order.id}</span>
+
+                        {/* 🟢 [ปุ่ม: หลังบ้าน] ปุ่มป้ายสถานะสีเหลือง/เขียว กดเพื่อเปลี่ยนสถานะบิล (กำลังทำ <-> เสร็จสิ้น) */}
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleUpdateOrderStatus(order.id, order.status); }}
                           className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all transform hover:scale-110 active:scale-95 ${
@@ -468,6 +498,7 @@ export default function RestaurantPOS() {
                         >
                           {order.status || 'กำลังทำ'}
                         </button>
+
                         <span className="text-xs font-bold text-slate-400">{new Date(order.created_at).toLocaleString('th-TH')}</span>
                       </div>
                       <div className="flex items-center justify-between md:justify-end gap-8 w-full md:w-auto">
@@ -513,8 +544,15 @@ export default function RestaurantPOS() {
                           <td className="p-4 md:p-6"><span className="category-badge text-[10px] md:text-xs">{m.category}</span></td>
                           <td className="p-4 md:p-6 font-black text-indigo-600">฿{m.price}</td>
                           <td className="p-4 md:p-6 text-center space-x-2 md:space-x-6">
-                            <button onClick={() => handleEdit(m)} disabled={isLoading} className="text-amber-500 font-black text-[10px] md:text-xs uppercase hover:text-amber-600 disabled:opacity-50">Edit</button>
-                            <button onClick={() => handleDelete(m.id)} disabled={isLoading} className="text-red-400 font-black text-[10px] md:text-xs uppercase hover:text-red-600 disabled:opacity-50">Delete</button>
+
+                            {/* 🟢 [ปุ่ม: หลังบ้าน] ปุ่มสีเหลือง "Edit" ในตาราง กดเพื่อดึงข้อมูลเมนูนั้นไปแก้ไขที่ฟอร์มด้านขวา */}
+                            <button onClick={() => handleEdit(m)} disabled={isLoading} className="text-amber-500 font-black text-[10px] md:text-xs uppercase hover:text-amber-600 disabled:opacity-50">
+                              Edit</button>
+
+                            {/* 🟢 [ปุ่ม: หลังบ้าน] ปุ่มสีแดง "Delete" ในตาราง กดเพื่อลบเมนูนั้นทิ้ง */}
+                            <button onClick={() => handleDelete(m.id)} disabled={isLoading} className="text-red-400 font-black text-[10px] md:text-xs uppercase hover:text-red-600 disabled:opacity-50">
+                              Delete</button>
+
                           </td>
                         </tr>
                       ))}
@@ -532,9 +570,13 @@ export default function RestaurantPOS() {
                     <div><label className="input-label">Category</label><input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field w-full" required /></div>
                   </div>
                   <div><label className="input-label">Image URL</label><input type="url" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} className="input-field w-full" placeholder="https://..." /></div>
+                  
+                  {/* 🟢 [ปุ่ม: หลังบ้าน] ปุ่ม Submit ของฟอร์มเพิ่มเมนู กดเพื่อ "SAVE NEW MENU" หรือ "UPDATE MENU" เข้า Database */}
                   <button type="submit" disabled={isLoading} className={`w-full ${editId ? "btn-primary bg-amber-500 hover:bg-amber-600" : "btn-secondary"} disabled:opacity-50 transition-all`}>
                     {isLoading ? "PROCESSING..." : (editId ? "UPDATE MENU" : "SAVE NEW MENU")}
                   </button>
+
+                  {/* 🟢 [ปุ่ม: หลังบ้าน] ปุ่ม "Cancel" จะโผล่มาเฉพาะตอนที่เรากำลัง "แก้ไข" เมนู กดเพื่อยกเลิกการแก้ไขแล้วกลับไปโหมดเพิ่มเมนู */}
                   {editId && <button type="button" disabled={isLoading} onClick={() => { setEditId(null); setForm({ name: "", price: "", category: "", image_url: "" }); }} className="w-full text-slate-400 font-bold py-2 mt-2 disabled:opacity-50">Cancel</button>}
                 </form>
               </div>
@@ -552,14 +594,24 @@ export default function RestaurantPOS() {
             <p className="text-indigo-600 font-black text-xl mb-8">฿{selectedMenu.price}</p>
             
             <div className="flex items-center justify-center gap-6 mb-10 bg-slate-50 p-4 rounded-3xl w-fit mx-auto border border-slate-100">
+
+              {/* 🟢 [ปุ่ม: หน้าต่างเลือกจำนวน] ปุ่มเครื่องหมายลบ "-" เพื่อลดจำนวนจาน (ลดต่ำกว่า 1 ไม่ได้) */}
               <button onClick={() => setQtyToAdd(Math.max(1, qtyToAdd - 1))} className="w-12 h-12 rounded-2xl bg-white shadow-sm text-slate-600 font-black text-2xl hover:bg-slate-200 transition-all">-</button>
               <span className="text-4xl font-black text-slate-800 w-12">{qtyToAdd}</span>
+
+              {/* 🟢 [ปุ่ม: หน้าต่างเลือกจำนวน] ปุ่มเครื่องหมายบวก "+" เพื่อเพิ่มจำนวนจาน */}
               <button onClick={() => setQtyToAdd(qtyToAdd + 1)} className="w-12 h-12 rounded-2xl bg-indigo-600 shadow-md text-white font-black text-2xl hover:bg-indigo-700 transition-all">+</button>
             </div>
             
             <div className="flex gap-4">
-              <button onClick={confirmAddToCart} className="btn-primary flex-1 py-4 text-lg">เพิ่มลงตะกร้า</button>
-              <button onClick={() => setSelectedMenu(null)} className="btn-outline flex-1 py-4 bg-slate-50 text-slate-400 border-none hover:bg-slate-100">ยกเลิก</button>
+
+              {/* 🟢 [ปุ่ม: หน้าต่างเลือกจำนวน] ปุ่มยืนยัน "เพิ่มลงตะกร้า" */}
+              <button onClick={confirmAddToCart} className="btn-primary flex-1 py-4 text-lg">
+                เพิ่มลงตะกร้า</button>
+
+              {/* 🟢 [ปุ่ม: หน้าต่างเลือกจำนวน] ปุ่ม "ยกเลิก" เพื่อปิดหน้าต่างนี้ทิ้ง */}
+              <button onClick={() => setSelectedMenu(null)} className="btn-outline flex-1 py-4 bg-slate-50 text-slate-400 border-none hover:bg-slate-100">
+                ยกเลิก</button>
             </div>
           </div>
         </div>
@@ -575,8 +627,15 @@ export default function RestaurantPOS() {
             <div className="bg-slate-50 p-4 rounded-2xl mb-6 border border-slate-100">
               <label className="input-label text-xs">Order Type (ประเภทรายการ)</label>
               <div className="flex gap-2 mt-2 mb-4">
-                <button onClick={() => setOrderType("ทานที่ร้าน")} className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${orderType === "ทานที่ร้าน" ? "bg-indigo-600 text-white shadow-md" : "bg-white text-slate-500 border border-slate-200"}`}>🍽️ ทานที่ร้าน</button>
-                <button onClick={() => {setOrderType("กลับบ้าน"); setTableNo("");}} className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${orderType === "กลับบ้าน" ? "bg-indigo-600 text-white shadow-md" : "bg-white text-slate-500 border border-slate-200"}`}>🛍️ กลับบ้าน</button>
+
+                {/* 🟢 [ปุ่ม: หน้าต่างชำระเงิน] ปุ่มกดเลือกออเดอร์ประเภท "ทานที่ร้าน" */}
+                <button onClick={() => setOrderType("ทานที่ร้าน")} className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${orderType === "ทานที่ร้าน" ? "bg-indigo-600 text-white shadow-md" : "bg-white text-slate-500 border border-slate-200"}`}>
+                  🍽️ ทานที่ร้าน</button>
+
+                {/* 🟢 [ปุ่ม: หน้าต่างชำระเงิน] ปุ่มกดเลือกออเดอร์ประเภท "กลับบ้าน" */}
+                <button onClick={() => {setOrderType("กลับบ้าน"); setTableNo("");}} className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${orderType === "กลับบ้าน" ? "bg-indigo-600 text-white shadow-md" : "bg-white text-slate-500 border border-slate-200"}`}>
+                  🛍️ กลับบ้าน</button>
+
               </div>
               
               {orderType === "ทานที่ร้าน" && (
@@ -588,9 +647,13 @@ export default function RestaurantPOS() {
 
             <label className="input-label text-xs mb-2 block">Payment Method (วิธีชำระเงิน)</label>
             <div className="grid grid-cols-2 gap-4 mb-8">
+
+              {/* 🟢 [ปุ่ม: หน้าต่างชำระเงิน] ปุ่มกล่องสี่เหลี่ยม กดเพื่อเลือกจ่ายด้วย "เงินสด" */}
               <div onClick={() => setPaymentMethod("เงินสด")} className={`p-4 md:p-6 rounded-2xl border-2 cursor-pointer transition-all flex flex-col items-center gap-2 ${paymentMethod === "เงินสด" ? "border-indigo-600 bg-indigo-50 shadow-sm" : "border-slate-100 hover:border-slate-200"}`}>
                 <span className="text-3xl md:text-4xl">💵</span><span className="font-black text-[10px] md:text-xs uppercase text-slate-700">Cash</span>
               </div>
+
+              {/* 🟢 [ปุ่ม: หน้าต่างชำระเงิน] ปุ่มกล่องสี่เหลี่ยม กดเพื่อเลือกจ่ายด้วย "พร้อมเพย์ (PromptPay)" */}
               <div onClick={() => setPaymentMethod("PromptPay")} className={`p-4 md:p-6 rounded-2xl border-2 cursor-pointer transition-all flex flex-col items-center gap-2 ${paymentMethod === "PromptPay" ? "border-indigo-600 bg-indigo-50 shadow-sm" : "border-slate-100 hover:border-slate-200"}`}>
                 <span className="text-3xl md:text-4xl">📱</span><span className="font-black text-[10px] md:text-xs uppercase text-slate-700">PromptPay</span>
               </div>
@@ -604,8 +667,13 @@ export default function RestaurantPOS() {
             )}
 
             <div className="flex flex-col gap-3">
-              <button onClick={confirmPayment} disabled={isLoading} className="btn-primary w-full py-4 disabled:opacity-50 text-lg shadow-indigo-200">ยืนยันการสั่งซื้อ</button>
-              <button onClick={() => setShowPaymentModal(false)} disabled={isLoading} className="btn-outline w-full border-none bg-slate-50 text-slate-400 py-4 disabled:opacity-50 hover:bg-slate-100">ยกเลิก</button>
+              {/* 🟢 [ปุ่ม: หน้าต่างชำระเงิน] ปุ่มยืนยัน เพื่อเซฟข้อมูลลง Database และเปิดบิล */}
+              <button onClick={confirmPayment} disabled={isLoading} className="btn-primary w-full py-4 disabled:opacity-50 text-lg shadow-indigo-200">
+                ยืนยันการสั่งซื้อ</button>
+
+              {/* 🟢 [ปุ่ม: หน้าต่างชำระเงิน] ปุ่มยกเลิก เพื่อปิดหน้าต่างชำระเงิน */}
+              <button onClick={() => setShowPaymentModal(false)} disabled={isLoading} className="btn-outline w-full border-none bg-slate-50 text-slate-400 py-4 disabled:opacity-50 hover:bg-slate-100">
+                ยกเลิก</button>
             </div>
           </div>
         </div>
@@ -642,7 +710,9 @@ export default function RestaurantPOS() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-4 print:hidden">
+              {/* 🟢 [ปุ่ม: หน้าต่างใบเสร็จ] ปุ่ม "PRINT" กดแล้วหน้าต่างปรินต์ของเบราว์เซอร์จะเด้งขึ้นมาเพื่อพิมพ์ใบเสร็จ */}
               <button onClick={() => window.print()} className="btn-primary flex-1 py-3">PRINT</button>
+              {/* 🟢 [ปุ่ม: หน้าต่างใบเสร็จ] ปุ่ม "CLOSE" กดเพื่อปิดใบเสร็จแล้วกลับไปหน้าสั่งอาหาร */}
               <button onClick={() => setShowBill(false)} className="btn-outline flex-1 py-3 border-none bg-slate-50 hover:bg-slate-100">CLOSE</button>
             </div>
           </div>
