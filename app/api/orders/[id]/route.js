@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { mysqlPool } from "@/utils/db";
 
-// เปลี่ยนจาก { params } เป็น context แทน
+
 export async function PATCH(req, context) {
   try {
-    // 💥 จุดสำคัญที่สุด: ต้องใส่ await ก่อนแกะกล่อง params 💥
+    
     const params = await context.params;
     const id = params.id; 
 
