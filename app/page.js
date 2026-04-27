@@ -134,8 +134,8 @@ export default function RestaurantPOS() {
               <div className="animate-in fade-in">
                 <label className="input-label">Role (สิทธิ์ผู้ใช้งาน)</label>
                 <select value={authForm.role} onChange={(e) => setAuthForm({...authForm, role: e.target.value})} className="input-field bg-white font-bold text-slate-600">
-                  <option value="cashier">👨‍🍳 พนักงานแคชเชียร์</option>
-                  <option value="manager">👑 ผู้จัดการร้าน (Manager)</option>
+                  <option value="cashier">👩🏻‍💻 พนักงานแคชเชียร์</option>
+                  <option value="manager">🧑🏻‍🍳 เชฟ </option>
                 </select>
               </div>
             )}
