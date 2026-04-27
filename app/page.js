@@ -352,7 +352,7 @@ export default function RestaurantPOS() {
           
           {/* ซ่อนปุ่มหลังบ้านถ้าเป็นแค่ cashier */}
           {currentUser.role === 'manager' && (
-            // 🟢 [ปุ่ม: Navbar] ปุ่มแถบเมนูด้านบน กดเพื่อสลับไป "หน้าผู้จัดการ (หลังบ้าน)" (เห็นเฉพาะผู้จัดการ)
+            // 🟢 [ปุ่ม: Navbar] ปุ่มแถบเมนูด้านบน กดเพื่อสลับไป "เซฟ (หลังบ้าน)" (เห็นเฉพาะเซฟ)
             <button onClick={() => setViewMode("manage")} className={viewMode === "manage" ? "btn-nav-active" : "btn-nav"}>หลังบ้าน</button>
           
           )}
@@ -362,7 +362,7 @@ export default function RestaurantPOS() {
         <div className="flex items-center gap-4 border-l-2 pl-4 border-slate-100">
           <div className="text-right hidden md:block">
             <p className="text-sm font-black text-slate-800">{currentUser.username}</p>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{currentUser.role === 'manager' ? 'ผู้จัดการ' : 'แคชเชียร์'}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{currentUser.role === 'manager' ? 'เซฟ' : 'แคชเชียร์'}</p>
           </div>
           
           {/* 🟢 [ปุ่ม: Navbar] ปุ่มตัวหนังสือสีแดงมุมขวาบน กดเพื่อ "ออกจากระบบ (Logout)" */}
